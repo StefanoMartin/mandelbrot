@@ -120,10 +120,62 @@ var move = function(f, dx, dy){
 	f.paint();
 }
 
+// Choose c from the point under the pointer on Fig. 1 (unless it is kept).
 var create_julia = function(e){
 	if (julia.blocked) { return; }
 	julia.c = getPoint(e);
 	julia.paint();
+}
+
+// ---- Dragging a figure moves its view ----
+
+// A press that moves less than this (CSS pixels) is a click, not a drag.
+var DRAG_SLOP = 4;
+
+var setupDrag = function(f){
+	var canvas = byId(f.type);
+	var drag = null;   // {id, x, y, startX, startY, moved}
+
+	canvas.addEventListener("pointerdown", function(e){
+		if (e.pointerType === "mouse" && e.button !== 0) { return; }
+		if (drag) { return; }   // one pointer at a time
+		e.preventDefault();
+		canvas.setPointerCapture(e.pointerId);
+		drag = { id: e.pointerId, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, moved: false };
+	});
+
+	canvas.addEventListener("pointermove", function(e){
+		if (!drag || e.pointerId !== drag.id){
+			// Only hovering: on Fig. 1 a mouse chooses c as it goes.
+			if (f === mandelbrot && e.pointerType === "mouse" && !drag) { create_julia(e); }
+			return;
+		}
+		if (!drag.moved){
+			if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < DRAG_SLOP) { return; }
+			drag.moved = true;
+			canvas.classList.add("grabbing");
+		}
+		// CSS pixels moved -> canvas pixels -> units of the plane. The view
+		// follows the pointer: dragging right shows what was on the left.
+		var rect = canvas.getBoundingClientRect();
+		var scale = canvas.width / (rect.width - 2 * canvas.clientLeft);
+		var step = region(f).step * scale;
+		f.cx -= (e.clientX - drag.x) * step;
+		f.cy += (e.clientY - drag.y) * step;
+		drag.x = e.clientX;
+		drag.y = e.clientY;
+		f.paint();
+	});
+
+	var end = function(e){
+		if (!drag || e.pointerId !== drag.id) { return; }
+		// A click (or tap) on Fig. 1 chooses c there.
+		if (!drag.moved && e.type === "pointerup" && f === mandelbrot) { create_julia(e); }
+		drag = null;
+		canvas.classList.remove("grabbing");
+	};
+	canvas.addEventListener("pointerup", end);
+	canvas.addEventListener("pointercancel", end);
 }
 
 // The point of the complex plane under the pointer.
@@ -244,8 +296,8 @@ var on = function(id, type, handler){
 }
 
 var setupEvents = function(){
-	on("mandelbrot", "pointermove", create_julia);
-	on("mandelbrot", "pointerdown", create_julia);
+	setupDrag(mandelbrot);
+	setupDrag(julia);
 	byId("mandelbrot").addEventListener("wheel", function(e){ wheelZoom(mandelbrot, e); }, { passive: false });
 	byId("julia").addEventListener("wheel", function(e){ wheelZoom(julia, e); }, { passive: false });
 	on("reset", "click", reset_fractals);

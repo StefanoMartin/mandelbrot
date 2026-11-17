@@ -271,9 +271,23 @@ canvas {
   border: 1px solid #5c584d;
 }
 
+/* A finger dragged over a figure moves it instead of scrolling the page. */
+canvas {
+  touch-action: none;
+}
+
+/* Fig. 1 is pointed at (to choose c), Fig. 2 is grabbed; both can be dragged. */
 #mandelbrot {
   cursor: crosshair;
-  touch-action: none;   /* a finger dragged over it chooses c instead of scrolling */
+}
+
+#julia {
+  cursor: grab;
+}
+
+canvas.grabbing,
+#mandelbrot.grabbing {
+  cursor: grabbing;
 }
 
 figcaption {
