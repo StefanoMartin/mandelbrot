@@ -3,6 +3,9 @@
 
 // Settings shared by both figures.
 var settings = {
+  formula: "classic",   // see FORMULAS (formulas.js)
+  p: [-0.5, 0],         // the extra number of the Phoenix formula
+  custom: { expr: "z^3 + z^2 + c", start: "0" },   // a typed formula
   power: 2,       // the exponent n in z^n + c
   palette: 0,     // index into PALETTES (kernel.js)
   smooth: true    // smooth shading instead of bands
@@ -41,9 +44,10 @@ var makeFigure = function(type, prefix, base_iteration){
       saveStateSoon();
     },
     reset: function(){
-      f.cx = 0;
-      f.cy = 0;
-      f.span = 4;
+      var home = homeView(f);
+      f.cx = home[0];
+      f.cy = home[1];
+      f.span = home[2];
       f.iteration = base_iteration;
       if (f.on_reset) { f.on_reset(); }
       f.paint();

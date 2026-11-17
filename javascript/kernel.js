@@ -88,9 +88,68 @@ function fractalKernel(scope) {
     return 0;
   }
 
+  // ---- Other formulas (formulas.js): compiled loops ----
+
+  var loops = {};                    // compiled loops, by formula key
+  var mods = new Float64Array(2);    // |z|^2 at escape and one step before
+
+  function loopFor(fm) {
+    var run = loops[fm.key];
+    if (!run) {
+      run = loops[fm.key] = new Function("zr", "zi", "cr", "ci", "maxIter", "bail", "n", "m", fm.loop);
+    }
+    return run;
+  }
+
+  function renderFormula(p, rowStart, rowEnd) {
+    var fm = p.formula, run = loopFor(fm);
+    var w = p.width;
+    var out = new Uint32Array(w * (rowEnd - rowStart));
+    var n = p.power, maxIter = p.maxIter;
+    var smooth = !!p.smooth && fm.smooth;
+    var lut = palette(p.colours, maxIter, smooth);
+    var inside = smooth ? lut[FINE] : lut[0];
+    var bail = smooth ? BAIL_SMOOTH : fm.bail;
+    // The degree d of the formula, for smooth shading: given, the power n,
+    // or (for a typed formula) estimated from the last two steps, as
+    // log|z_k| / log|z_k-1| tends to d once z is large.
+    var logD = fm.degree > 1 ? Math.log(fm.degree) : (fm.degree === 0 && n > 1 ? Math.log(n) : 0);
+    var estimate = fm.id === "custom";
+    var toFine = (FINE - 1) / Math.log(maxIter + 1);
+    var xr = (p.x1 - p.x0) / p.width;
+    var yr = (p.y1 - p.y0) / p.height;
+    var isM = p.type === "mandelbrot";
+    var sr = fm.start[0], si = fm.start[1];
+    var idx = 0;
+    for (var j = rowStart; j < rowEnd; j++) {
+      var y = -(j * yr + p.y0);
+      for (var i = 0; i < w; i++) {
+        var x = i * xr + p.x0;
+        var it = isM ? run(sr, si, x, y, maxIter, bail, n, mods)
+                     : run(x, y, p.cr, p.ci, maxIter, bail, n, mods);
+        if (it === 0) { out[idx++] = inside; continue; }
+        if (!smooth) { out[idx++] = lut[it]; continue; }
+        var m0 = mods[0], m1 = mods[1], nu = it, ld = logD;
+        if (estimate) {
+          ld = (m1 > 4 && m0 > m1 && m0 < Infinity) ? Math.log(Math.log(m0) / Math.log(m1)) : Math.LN2;
+          if (!(ld > 0.05)) { ld = Math.LN2; }
+        }
+        if (m0 > 1 && m0 < Infinity && ld > 0) {
+          nu = it + 1 - Math.log(0.5 * Math.log(m0) / Math.LN2) / ld;
+        }
+        if (!(nu >= 0)) { nu = 0; }
+        var f = Math.log(nu + 1) * toFine;
+        out[idx++] = lut[f >= FINE - 1 ? FINE - 1 : (f + 0.5) | 0];
+      }
+    }
+    return out;
+  }
+
   // Render rows [rowStart, rowEnd) of a view into packed RGBA pixels.
-  // p = { type, width, height, x0, x1, y0, y1, power, maxIter, cr, ci, colours, smooth }
+  // p = { type, width, height, x0, x1, y0, y1, power, maxIter, cr, ci, colours,
+  //       smooth, formula }
   function renderRows(p, rowStart, rowEnd) {
+    if (p.formula && p.formula.id !== "classic") { return renderFormula(p, rowStart, rowEnd); }
     var w = p.width;
     var out = new Uint32Array(w * (rowEnd - rowStart));
     var n = p.power, maxIter = p.maxIter;

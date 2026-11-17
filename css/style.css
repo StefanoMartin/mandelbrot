@@ -181,6 +181,45 @@ button.zoom + button.zoom + button {
   margin-left: 10px;
 }
 
+/* A typed formula. */
+.text_field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1px 4px;
+  font: 13px "Courier New", Courier, monospace;
+  color: #222;
+  background: #fbf9f3;
+  border: 1px solid #8c8676;
+  border-radius: 0;
+}
+
+.text_field.invalid {
+  border-color: #8a2b1a;
+  background: #f6e3dc;
+}
+
+.formula_error {
+  font-size: 12px;
+  font-style: italic;
+  color: #8a2b1a;
+}
+
+.formula_error:empty {
+  display: none;
+}
+
+/* z with a bar: its conjugate. */
+.bar {
+  text-decoration: overline;
+}
+
+/* Controls that do not apply to the formula in use. */
+button:disabled,
+input:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 /* c: two number fields side by side. */
 .c_fields {
   white-space: nowrap;
@@ -426,7 +465,7 @@ figcaption .fig {
     font-size: 16px;
   }
 
-  select, .number_field {
+  select, .number_field, .text_field {
     min-height: 32px;
     font-size: 16px;
   }

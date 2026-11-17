@@ -1,6 +1,8 @@
-// The orbit of a point: the path z takes, step by step, under z -> z^n + c.
+// The orbit of a point: the path z takes, step by step, under the formula
+// in use (formulas.js), z^n + c to begin with.
 //
-// On Fig. 1 the orbit starts at z = 0 and c is the point under the pointer:
+// On Fig. 1 the orbit starts where the formula starts z (0 for z^n + c), and
+// c is the point under the pointer:
 // the point belongs to the Mandelbrot set when this orbit never escapes.
 // On Fig. 2 c is the Julia set's own, and the orbit starts at the point
 // under the pointer: it belongs to the Julia set's filled-in shape when its
@@ -24,18 +26,20 @@ var orbit = {
   start: null     // the point under the pointer when it was chosen
 };
 
-// Follow z from z0 under z^n + c for at most `steps` steps.
-// Returns the points (z0 first) and the step at which |z| >= 2, or 0.
+// Follow z from z0 under the formula for at most `steps` steps.
+// Returns the points (z0 first) and the step at which z escaped, or 0.
 var followOrbit = function(z0, c, n, steps){
-  var zr = z0[0], zi = z0[1];
+  var formula = currentFormula(), bail = formula.spec.bail;
+  var zr = z0[0], zi = z0[1], yr = 0, yi = 0;
   var points = [[zr, zi]];
   for (var k = 1; k <= steps; k++){
-    var ar = 1, ai = 0, t;
-    for (var m = 0; m < n; m++) { t = ar * zr - ai * zi; ai = ai * zr + ar * zi; ar = t; }
-    zr = ar + c[0];
-    zi = ai + c[1];
+    var next = formula.step(zr, zi, yr, yi, c[0], c[1], n);
+    yr = zr; yi = zi;
+    zr = next[0]; zi = next[1];
+    var mod = zr * zr + zi * zi;
+    if (!(mod < Infinity)) { return { points: points, escaped: k }; }   // too far to draw
     points.push([zr, zi]);
-    if (zr * zr + zi * zi >= 4) { return { points: points, escaped: k }; }
+    if (formula.escapes(zr, zi, mod, bail)) { return { points: points, escaped: k }; }
   }
   return { points: points, escaped: 0 };
 };
@@ -90,13 +94,13 @@ var drawOrbit = function(){
   if (!orbit.on || !f) { return; }
   var text = byId(f.type + "_note");
 
-  var z0 = f === mandelbrot ? [0, 0] : orbit.start;
+  var z0 = f === mandelbrot ? currentFormula().start : orbit.start;
   var c = f === mandelbrot ? orbit.start : julia.c;
   var limit = Math.min(f.iteration, ORBIT_DRAWN_MAX);
   var result = followOrbit(z0, c, settings.power, Math.max(limit, ORBIT_FOLLOWED));
   var shown = result.points.slice(0, limit + 1);
 
-  text.innerHTML = (f === mandelbrot ? "From <i>z</i> = 0 with <i>c</i> = " + formatComplex(c)
+  text.innerHTML = (f === mandelbrot ? "From <i>z</i> = " + startHtml() + " with <i>c</i> = " + formatComplex(c)
                                      : "From <i>z</i> = " + formatComplex(z0)) +
     ", the orbit " + orbitVerdict(result, limit);
 

@@ -10,6 +10,7 @@
     <script src="javascript/kernel.js"></script>
     <script src="javascript/renderer.js"></script>
     <script src="javascript/figures.js"></script>
+    <script src="javascript/formulas.js"></script>
     <script src="javascript/orbit.js"></script>
     <script src="javascript/main.js"></script>
   </head>
@@ -26,6 +27,27 @@
       <fieldset>
         <legend>Settings</legend>
         <table class="controls">
+          <tr>
+            <th>Formula</th>
+            <td><select id="formula" title="The rule z &rarr; f(z, c) that both figures follow"></select></td>
+          </tr>
+          <tr id="row_expr" hidden>
+            <th><i>f</i>(<i>z</i>, <i>c</i>)</th>
+            <td><input class="text_field" type="text" id="custom_expr" spellcheck="false" autocomplete="off"
+              autocapitalize="off" title="Your formula, for example z^3 + z^2 + c"></td>
+          </tr>
+          <tr id="row_start" hidden>
+            <th>Start <i>z</i></th>
+            <td><input class="text_field" type="text" id="custom_start" spellcheck="false" autocomplete="off"
+              autocapitalize="off" title="Where z starts on Fig. 1, for example 0 or pi/2"></td>
+          </tr>
+          <tr id="row_p" hidden>
+            <th><i>p</i></th>
+            <td class="c_fields">
+              <input class="number_field" type="number" id="p_re" step="0.01" title="Real part of p"> + <input
+                class="number_field" type="number" id="p_im" step="0.01" title="Imaginary part of p"> <i>i</i>
+            </td>
+          </tr>
           <tr>
             <th>Power</th>
             <td>
@@ -47,13 +69,20 @@
               id="smooth" checked> Smooth</label></td>
           </tr>
         </table>
+        <p class="formula_error" id="formula_error"></p>
+        <p class="hint" id="custom_help" hidden>
+          Use <i>z</i>, <i>c</i>, <i>i</i>, pi, e, <i>n</i> (the power), + &minus; * / ^ and
+          sin, cos, tan, sinh, cosh, tanh, exp, log, sqrt, abs, conj, re, im, arg.
+          Start <i>z</i> at a point where the derivative of <i>f</i> is 0, so that
+          the two figures belong together.
+        </p>
         <p class="buttons"><button type="button" id="reset">Reset both figures</button></p>
       </fieldset>
 
       <fieldset>
-        <legend>Fig. 1 &middot; Mandelbrot set</legend>
+        <legend>Fig. 1 &middot; <span id="m_legend">Mandelbrot set</span></legend>
         <table class="controls readout">
-          <tr><th>Formula</th><td><i>z</i><sup id="m_power">2</sup> + <i>c</i>, from <i>z</i> = 0</td></tr>
+          <tr><th>Formula</th><td id="m_formula"><i>z</i><sup>2</sup> + <i>c</i>, from <i>z</i> = 0</td></tr>
           <tr><th>Real</th><td id="m_real">[&minus;2, 2]</td></tr>
           <tr><th>Imaginary</th><td id="m_imag">[&minus;2, 2]</td></tr>
           <tr><th>Zoom</th><td id="m_zoom">&times;1</td></tr>
@@ -70,7 +99,7 @@
       <fieldset>
         <legend>Fig. 2 &middot; Julia set</legend>
         <table class="controls readout">
-          <tr><th>Formula</th><td><i>z</i><sup id="j_power">2</sup> + <i>c</i></td></tr>
+          <tr><th>Formula</th><td id="j_formula"><i>z</i><sup>2</sup> + <i>c</i></td></tr>
           <tr><th>Real</th><td id="j_real">[&minus;2, 2]</td></tr>
           <tr><th>Imaginary</th><td id="j_imag">[&minus;2, 2]</td></tr>
           <tr><th>Zoom</th><td id="j_zoom">&times;1</td></tr>
@@ -159,7 +188,7 @@
             </g>
           </svg>
         </div>
-        <figcaption><span class="fig">Fig. 1.</span> The Mandelbrot set.</figcaption>
+        <figcaption><span class="fig">Fig. 1.</span> <span id="m_caption">The Mandelbrot set.</span></figcaption>
       </figure>
       <figure>
         <div class="plate">

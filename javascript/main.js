@@ -26,9 +26,9 @@ var formatRange = function(r){
 	return "[" + f(r[0]) + ", " + f(r[1]) + "]";
 }
 
-// Magnification compared with the starting view (span 4).
-var formatZoom = function(span){
-	var zoom = 4 / span;
+// Magnification compared with the figure's starting view.
+var formatZoom = function(f){
+	var zoom = homeView(f)[2] / f.span;
 	return "×" + (zoom < 10 ? formatNumber(zoom) : Math.round(zoom).toLocaleString("en-US"));
 }
 
@@ -70,6 +70,7 @@ var viewParams = function(f){
 		power: settings.power, maxIter: f.iteration,
 		cr: f.c ? f.c[0] : 0, ci: f.c ? f.c[1] : 0,
 		colours: paletteFor(settings.palette, f.type),
+		formula: currentFormula().spec,
 		smooth: settings.smooth
 	};
 }
@@ -77,10 +78,15 @@ var viewParams = function(f){
 // The panel readout of a figure.
 var showView = function(f){
 	var r = region(f), id = function(name){ return byId(f.prefix + "_" + name); };
-	id("power").textContent = settings.power;
+	var formula = currentFormula();
+	id("formula").innerHTML = formulaHtml() + (f === mandelbrot ? ", from <i>z</i> = " + startHtml() : "");
+	if (f === mandelbrot){
+		byId("m_legend").textContent = formula.def.short;
+		byId("m_caption").textContent = formula.def.title + ".";
+	}
 	id("real").textContent = formatRange([r.x0, r.x1]);
 	id("imag").textContent = formatRange([r.bottom, r.top]);
-	id("zoom").textContent = formatZoom(f.span);
+	id("zoom").textContent = formatZoom(f);
 	id("iter").textContent = f.iteration;
 }
 
@@ -93,7 +99,7 @@ var build = function(){
 
 // Farthest out and deepest in. Below about 1e-13 the pixels would be
 // closer together than double-precision numbers can tell apart.
-var SPAN_MAX = 16, SPAN_MIN = 1e-13;
+var SPAN_MAX = 64, SPAN_MIN = 1e-13;
 
 // Zoom by `factor` (above 1 zooms in), keeping the point p where it is on screen.
 var zoom_at = function(f, factor, p){
@@ -115,7 +121,7 @@ var zoom_centre = function(f, factor){
 // 5x of zoom, as the old zoom steps did. Rounded, so the colours don't shift
 // at every turn of the wheel.
 var setIterations = function(f){
-	var zoom = 4 / f.span;
+	var zoom = homeView(f)[2] / f.span;
 	var it = f.base_iteration + 100 * Math.log(zoom) / Math.log(5);
 	f.iteration = Math.max(f.base_iteration, Math.round(it / 25) * 25);
 }
@@ -189,7 +195,8 @@ var showC = function(){
 	byId("caption_c").innerHTML = formatComplex(c);
 	var match = "";
 	FAMOUS.forEach(function(item, i){
-		if (settings.power === 2 && item.c[0] === c[0] && item.c[1] === c[1]) { match = String(i); }
+		if (settings.formula === "classic" && settings.power === 2 &&
+		    item.c[0] === c[0] && item.c[1] === c[1]) { match = String(i); }
 	});
 	byId("famous").value = match;
 }
@@ -205,10 +212,15 @@ var readCFields = function(){
 var chooseFamous = function(){
 	var item = FAMOUS[byId("famous").value];
 	if (!item) { return; }
-	if (settings.power !== 2){   // the names belong to z^2 + c
+	if (settings.formula !== "classic" || settings.power !== 2){   // the names belong to z^2 + c
+		if (settings.formula !== "classic"){
+			settings.formula = "classic";
+			var home = homeView(mandelbrot);
+			mandelbrot.cx = home[0]; mandelbrot.cy = home[1]; mandelbrot.span = home[2];
+			setIterations(mandelbrot);
+		}
 		settings.power = 2;
-		byId("power").value = 2;
-		byId("power").classList.remove("invalid");
+		showSettings();
 		mandelbrot.paint();
 	}
 	julia.cx = 0; julia.cy = 0; julia.span = 4;
@@ -366,6 +378,52 @@ var change_power = function(){
 	build();
 }
 
+// A formula from the list: both figures go back to its starting views.
+var change_formula = function(){
+	settings.formula = byId("formula").value;
+	var formula = currentFormula();
+	[mandelbrot, julia].forEach(function(f){
+		var home = homeView(f);
+		f.cx = home[0]; f.cy = home[1]; f.span = home[2];
+		setIterations(f);
+	});
+	if (formula.def.julia_c){
+		julia.set_blocked(false);
+		julia.c = formula.def.julia_c.slice();
+	}
+	hideOrbit();
+	showSettings();
+	build();
+}
+
+// The p of the Phoenix formula.
+var change_p = function(){
+	var re = byId("p_re"), im = byId("p_im");
+	var a = parseFloat(re.value), b = parseFloat(im.value);
+	re.classList.toggle("invalid", !isFinite(a));
+	im.classList.toggle("invalid", !isFinite(b));
+	if (isFinite(a) && isFinite(b)){
+		settings.p = [a, b];
+		build();
+	}
+}
+
+// A typed formula, or its starting point: drawn as soon as it makes sense.
+var change_custom = function(){
+	settings.custom = { expr: byId("custom_expr").value, start: byId("custom_start").value };
+	showFormulaError();
+	if (!currentFormula().error) { build(); }
+}
+
+var showFormulaError = function(){
+	var formula = currentFormula();
+	byId("formula_error").textContent = formula.error || formula.warning || "";
+	byId("custom_expr").classList.toggle("invalid", !!formula.error);
+	byId("power").disabled = !formula.power;
+	byId("power").title = formula.power ? "The exponent n" : "This formula has no power n";
+	document.querySelectorAll("button.step").forEach(function(b){ b.disabled = !formula.power; });
+}
+
 var change_palette = function(){
 	settings.palette = parseInt(byId("palette").value, 10);
 	try { localStorage.setItem(PALETTE_KEY, String(settings.palette)); } catch (e) { /* not kept: fine */ }
@@ -389,6 +447,14 @@ var setupLists = function(){
 	try { saved = parseInt(localStorage.getItem(PALETTE_KEY), 10); } catch (e) { saved = null; }
 	settings.palette = PALETTES[saved] ? saved : 0;
 
+	var list = byId("formula");
+	FORMULAS.forEach(function(item){
+		var option = document.createElement("option");
+		option.value = item.id;
+		option.textContent = item.name;
+		list.appendChild(option);
+	});
+
 	var famous = byId("famous");
 	FAMOUS.forEach(function(item, i){
 		var option = document.createElement("option");
@@ -404,20 +470,35 @@ var showSettings = function(){
 	byId("power").classList.remove("invalid");
 	byId("palette").value = String(settings.palette);
 	byId("smooth").checked = settings.smooth;
+	var id = settings.formula;
+	byId("formula").value = id;
+	byId("row_p").hidden = id !== "phoenix";
+	byId("p_re").value = settings.p[0];
+	byId("p_im").value = settings.p[1];
+	["row_expr", "row_start", "custom_help"].forEach(function(row){ byId(row).hidden = id !== "custom"; });
+	byId("custom_expr").value = settings.custom.expr;
+	byId("custom_start").value = settings.custom.start;
+	showFormulaError();
 }
 
 // ---- Links: the address remembers the figures ----
 
 // p = power, k = colours, s = 0 for banded shading, m and j = centre and span
-// of each figure, c = the point c. Opening a link keeps its c, so that moving
-// the pointer onto the page does not lose it.
+// of each figure, c = the point c; f = formula (when not z^n + c), with
+// fp = its p (Phoenix), fe and fs = a typed formula and its start. Opening a
+// link keeps its c, so that moving the pointer onto the page does not lose it.
 var encodeState = function(){
 	var view = function(f){
 		var d = decimalsFor(region(f).step);
 		return [plain(f.cx, d), plain(f.cy, d), String(+f.span.toPrecision(6))].join(",");
 	};
 	var dc = decimalsFor(region(mandelbrot).step);
-	return "#p=" + settings.power +
+	var id = settings.formula;
+	var formula = id === "classic" ? "" : "&f=" + id +
+		(id === "phoenix" ? "&fp=" + settings.p[0] + "," + settings.p[1] : "") +
+		(id === "custom" ? "&fe=" + encodeURIComponent(settings.custom.expr) +
+		                   "&fs=" + encodeURIComponent(settings.custom.start) : "");
+	return "#p=" + settings.power + formula +
 		"&k=" + settings.palette +
 		(settings.smooth ? "" : "&s=0") +
 		"&m=" + view(mandelbrot) +
@@ -444,6 +525,17 @@ var applyState = function(hash){
 		} else if (key === "k"){
 			v = parseInt(value, 10);
 			if (PALETTES[v]) { settings.palette = v; found = true; }
+		} else if (key === "f"){
+			if (formulaById(value).id === value) { settings.formula = value; found = true; }
+		} else if (key === "fp"){
+			v = numbers(value, 2);
+			if (v) { settings.p = v; }
+		} else if (key === "fe" || key === "fs"){
+			try { v = decodeURIComponent(value); } catch (e) { v = null; }
+			if (v !== null){
+				settings.custom = { expr: key === "fe" ? v : settings.custom.expr,
+				                    start: key === "fs" ? v : settings.custom.start };
+			}
 		} else if (key === "s"){
 			settings.smooth = value !== "0"; found = true;
 		} else if (key === "m" || key === "j"){
@@ -459,6 +551,8 @@ var applyState = function(hash){
 			if (v) { julia.c = v; julia.set_blocked(true); found = true; }
 		}
 	});
+	// A link without a formula is about z^n + c.
+	if (found && !/(^|&)f=/.test(text)) { settings.formula = "classic"; }
 	return found;
 }
 
@@ -483,6 +577,7 @@ var saveStateSoon = function(){
 var onHashChange = function(){
 	if (location.hash === saved_hash) { return; }
 	if (applyState(location.hash)){
+		hideOrbit();
 		showSettings();
 		build();
 	}
@@ -576,6 +671,11 @@ var setupEvents = function(){
 	on("power", "input", change_power);
 	on("palette", "change", change_palette);
 	on("smooth", "change", change_smooth);
+	on("formula", "change", change_formula);
+	on("p_re", "input", change_p);
+	on("p_im", "input", change_p);
+	on("custom_expr", "input", change_custom);
+	on("custom_start", "input", change_custom);
 	on("save_m", "click", function(){ savePicture(mandelbrot); });
 	on("save_j", "click", function(){ savePicture(julia); });
 	on("copy_link", "click", copyLink);
