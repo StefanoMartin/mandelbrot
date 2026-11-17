@@ -12,33 +12,44 @@
 //    known to be inside the set and are skipped
 //  - periodicity check: if z ever repeats *exactly*, the orbit is a cycle and
 //    can never escape, so we stop early (result is identical to iterating on)
-// The produced image is pixel-identical to the original algorithm.
+// With smooth shading off, the image is pixel-identical to the original
+// algorithm. Smooth shading (see renderRows) blends between the bands.
 function fractalKernel(scope) {
   "use strict";
 
   var palettes = {};
+  var FINE = 2048;        // entries of the table used for smooth shading
+  var BAIL_SMOOTH = 1e6;  // |z|^2 at which smooth shading stops iterating
+  var lastMod2 = 0;       // |z|^2 when escape() last saw a point escape
 
-  // Packed RGBA colour (as a little-endian Uint32) for every iteration count
-  // 0..maxIter. colours = { key, inside: [r,g,b], stops: four [r,g,b] }:
-  // 0 iterations (never escaped) gets `inside`; otherwise the count is put on
-  // a log scale from 0 to 3 and blended along the four stops, from points
-  // that escape at once (stops[0]) to those that escape last (stops[3]).
-  function palette(colours, maxIter) {
-    var key = colours.key + ":" + maxIter;
+  // Colour on the blend at position c (0..3) of a scheme, written as RGBA
+  // bytes at o. From points that escape at once (stops[0]) to those that
+  // escape last (stops[3]).
+  function blend(colours, c, bytes, o) {
+    var seg = c < 1 ? 0 : (c < 2 ? 1 : 2), u = c - seg;
+    var a = colours.stops[seg], b = colours.stops[seg + 1];
+    for (var k = 0; k < 3; k++) { bytes[o + k] = a[k] + (b[k] - a[k]) * u; }
+    bytes[o + 3] = 255;
+  }
+
+  // Packed RGBA colours (little-endian Uint32), cached per scheme.
+  // Banded shading: one colour per iteration count 0..maxIter; the count is
+  // put on a log scale from 0 to 3; 0 (never escaped) gets `inside`.
+  // Smooth shading: FINE colours along the blend, plus `inside` at the end.
+  // colours = { key, inside: [r,g,b], stops: four [r,g,b] }
+  function palette(colours, maxIter, smooth) {
+    var key = colours.key + ":" + (smooth ? "smooth" : maxIter);
     if (palettes[key]) { return palettes[key]; }
-    var bytes = new Uint8ClampedArray((maxIter + 1) * 4);
-    var stops = colours.stops;
-    for (var i = 0; i <= maxIter; i++) {
-      var o = i * 4;
-      if (i === 0) {
-        bytes[o] = colours.inside[0]; bytes[o + 1] = colours.inside[1]; bytes[o + 2] = colours.inside[2];
+    var size = smooth ? FINE + 1 : maxIter + 1;
+    var bytes = new Uint8ClampedArray(size * 4);
+    for (var i = 0; i < size; i++) {
+      if (smooth ? i === FINE : i === 0) {
+        bytes[i * 4] = colours.inside[0]; bytes[i * 4 + 1] = colours.inside[1];
+        bytes[i * 4 + 2] = colours.inside[2]; bytes[i * 4 + 3] = 255;
       } else {
-        var c = 3 * Math.log(i + 1) / Math.log(maxIter + 1);
-        var seg = c < 1 ? 0 : (c < 2 ? 1 : 2), u = c - seg;
-        var a = stops[seg], b = stops[seg + 1];
-        for (var k = 0; k < 3; k++) { bytes[o + k] = a[k] + (b[k] - a[k]) * u; }
+        var c = smooth ? 3 * i / (FINE - 1) : 3 * Math.log(i + 1) / Math.log(maxIter + 1);
+        blend(colours, c, bytes, i * 4);
       }
-      bytes[o + 3] = 255;
     }
     var lut = new Uint32Array(bytes.buffer);
     palettes[key] = lut;
@@ -46,19 +57,20 @@ function fractalKernel(scope) {
   }
 
   // Escape count for one point: 0 = never escaped (inside), otherwise 1..maxIter.
-  // (zr, zi) is the starting z, (cr, ci) the constant.
-  function escape(zr, zi, cr, ci, n, maxIter) {
-    if (zr * zr + zi * zi >= 4) { return 1; }
+  // (zr, zi) is the starting z, (cr, ci) the constant; the point has escaped
+  // once |z|^2 >= bail (4 for banded shading, as the original page did).
+  function escape(zr, zi, cr, ci, n, maxIter, bail) {
+    if (zr * zr + zi * zi >= bail) { lastMod2 = zr * zr + zi * zi; return 1; }
     var pr = zr, pi = zi;          // periodicity reference point
     var check = 8, sinceCheck = 0; // Brent-style doubling window
-    var ii, t;
+    var ii, t, m;
     if (n === 2) {
       var zr2 = zr * zr, zi2 = zi * zi;
       for (ii = 0; ii < maxIter; ii++) {
         zi = 2 * zr * zi + ci;
         zr = zr2 - zi2 + cr;
         zr2 = zr * zr; zi2 = zi * zi;
-        if (zr2 + zi2 >= 4) { return ii + 1; }
+        if (zr2 + zi2 >= bail) { lastMod2 = zr2 + zi2; return ii + 1; }
         if (zr === pr && zi === pi) { return 0; }
         if (++sinceCheck === check) { sinceCheck = 0; check *= 2; pr = zr; pi = zi; }
       }
@@ -67,7 +79,8 @@ function fractalKernel(scope) {
         var ar = 1, ai = 0;
         for (var k = 0; k < n; k++) { t = ar * zr - ai * zi; ai = ai * zr + ar * zi; ar = t; }
         zr = ar + cr; zi = ai + ci;
-        if (zr * zr + zi * zi >= 4) { return ii + 1; }
+        m = zr * zr + zi * zi;
+        if (m >= bail) { lastMod2 = m; return ii + 1; }
         if (zr === pr && zi === pi) { return 0; }
         if (++sinceCheck === check) { sinceCheck = 0; check *= 2; pr = zr; pi = zi; }
       }
@@ -76,14 +89,23 @@ function fractalKernel(scope) {
   }
 
   // Render rows [rowStart, rowEnd) of a view into packed RGBA pixels.
-  // p = { type, width, height, x0, x1, y0, y1, power, maxIter, cr, ci, colours }
+  // p = { type, width, height, x0, x1, y0, y1, power, maxIter, cr, ci, colours, smooth }
   function renderRows(p, rowStart, rowEnd) {
     var w = p.width;
     var out = new Uint32Array(w * (rowEnd - rowStart));
-    var lut = palette(p.colours, p.maxIter);
+    var n = p.power, maxIter = p.maxIter;
+    // Smooth shading needs a power of at least 2 (it divides by log n).
+    var smooth = !!p.smooth && n >= 2;
+    var lut = palette(p.colours, maxIter, smooth);
+    var inside = smooth ? lut[FINE] : lut[0];
+    var bail = smooth ? BAIL_SMOOTH : 4;
+    // Smooth shading: the "normalised iteration count"
+    //   nu = count + 1 - log(log|z| / log 2) / log n,
+    // which grows continuously instead of in steps, then the same log scale.
+    var invLogN = 1 / Math.log(n), invLog2 = 1 / Math.LN2;
+    var toFine = (FINE - 1) / Math.log(maxIter + 1);
     var xr = (p.x1 - p.x0) / p.width;
     var yr = (p.y1 - p.y0) / p.height;
-    var n = p.power, maxIter = p.maxIter;
     var isM = p.type === "mandelbrot";
     var bulbCheck = isM && n === 2;
     var idx = 0;
@@ -97,16 +119,22 @@ function fractalKernel(scope) {
           if (bulbCheck && x * x + y2 < 4) {
             var xq = x - 0.25, q = xq * xq + y2;
             if (q * (q + xq) <= 0.25 * y2 || (x + 1) * (x + 1) + y2 <= 0.0625) {
-              out[idx++] = lut[0];
+              out[idx++] = inside;
               continue;
             }
           }
           // Mandelbrot: z starts at 0. The original pre-checks |c| >= 2.
-          it = (x * x + y2 >= 4) ? 1 : escape(0, 0, x, y, n, maxIter);
+          if (!smooth && x * x + y2 >= 4) { it = 1; }
+          else { it = escape(0, 0, x, y, n, maxIter, bail); }
         } else {
-          it = escape(x, y, p.cr, p.ci, n, maxIter);
+          it = escape(x, y, p.cr, p.ci, n, maxIter, bail);
         }
-        out[idx++] = lut[it];
+        if (it === 0) { out[idx++] = inside; continue; }
+        if (!smooth) { out[idx++] = lut[it]; continue; }
+        var nu = it + 1 - Math.log(0.5 * Math.log(lastMod2) * invLog2) * invLogN;
+        if (nu < 0) { nu = 0; }
+        var f = Math.log(nu + 1) * toFine;
+        out[idx++] = lut[f >= FINE - 1 ? FINE - 1 : (f + 0.5) | 0];
       }
     }
     return out;

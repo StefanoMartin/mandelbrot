@@ -181,6 +181,19 @@ button.zoom + button.zoom + button {
   margin-left: 10px;
 }
 
+/* c: two number fields side by side. */
+.c_fields {
+  white-space: nowrap;
+}
+
+.c_fields .number_field {
+  width: 64px;
+}
+
+table.c_controls {
+  margin-top: 6px;
+}
+
 .status {
   font-size: 12px;
   font-style: italic;
@@ -217,6 +230,10 @@ kbd {
   text-align: center;
   background: #fbf9f3;
   border: 1px solid #8c8676;
+}
+
+.hint:empty {
+  display: none;
 }
 
 .hint {
@@ -290,6 +307,27 @@ canvas.grabbing,
   cursor: grabbing;
 }
 
+/* The mark of c on Fig. 1, centred on its position; set from script. */
+.marker {
+  position: absolute;
+  display: none;
+  margin: -12.5px 0 0 -12.5px;
+  pointer-events: none;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.marker .halo {
+  stroke: #fbf9f3;
+  stroke-width: 4;
+  opacity: 0.85;
+}
+
+.marker .ink {
+  stroke: #8a2b1a;
+  stroke-width: 1.6;
+}
+
 figcaption {
   flex: none;
   margin-top: 6px;
@@ -347,5 +385,9 @@ figcaption .fig {
 
   button.step {
     width: 36px;
+  }
+
+  .c_fields .number_field {
+    width: 104px;
   }
 }
