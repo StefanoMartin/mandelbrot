@@ -24,13 +24,20 @@ In the panel:
 - **Formula** chooses the rule *z* → *f*(*z*, *c*) both figures follow (see
   below).
 - **Power** changes the formula to *z*ⁿ + *c* (n from 1 to 10).
-- **Colours** and **Shading**: five colour schemes, and three ways to shade
+- **Show**: both figures, or one of them using all the room (also with the
+  *Hide* / *Show both* button in the corner of each figure). A hidden figure
+  is not drawn at all.
+- **Colours** and **Shading**: six colour schemes, and three ways to shade
   the outside of the set: *Smooth*, *Bands* (with *Classic* colours, the
   original look of the page) and *Ink lines*, which draws the edge of the set
   and its finest filaments as thin lines, like an engraving. Ink lines
   estimate the distance of each pixel to the set from how fast the smooth
   shading changes between neighbouring pixels, so they work for every
   formula, typed ones too.
+  *Ink on paper*, *Watercolour*, *Atlas* and *Night* adapt to the view: a
+  quick sample of it finds how fast its points escape, and their colours are
+  spread over that range, so the gradual change towards the set shows at
+  every zoom. *Sepia* and *Classic* keep the first look of the page.
 - ***c***: type a value, or pick a famous Julia set (Douady's rabbit, the
   Basilica, the Airplane, …). A typed or picked *c* is kept.
 - **Orbit**: shows the path *z* takes, step by step, from the point under the

@@ -9,7 +9,8 @@ var settings = {
   power: 2,       // the exponent n in z^n + c
   palette: 0,     // index into PALETTES (kernel.js)
   smooth: true,   // smooth shading instead of bands
-  lines: false    // ink lines along the set (with smooth shading under them)
+  lines: false,   // ink lines along the set (with smooth shading under them)
+  show: "both"    // the figures shown: "both", "mandelbrot" or "julia"
 };
 
 // type: "mandelbrot" or "julia" (also the id of its canvas);
@@ -33,7 +34,12 @@ var makeFigure = function(type, prefix, base_iteration){
     on_reset: null,
 
     // Request a redraw; calls within one animation frame are merged.
+    // A hidden figure is not drawn (it is when it is shown again).
     paint: function(){
+      if (!figureShown(f)){
+        byId(prefix + "_status").textContent = "Hidden.";
+        return;
+      }
       byId(prefix + "_status").textContent = "Drawing…";
       f.schedule();
     },
@@ -57,6 +63,10 @@ var makeFigure = function(type, prefix, base_iteration){
   };
   f.schedule = Renderer.scheduler(f.render);
   return f;
+};
+
+var figureShown = function(f){
+  return settings.show === "both" || settings.show === f.type;
 };
 
 var mandelbrot = makeFigure("mandelbrot", "m", 200);

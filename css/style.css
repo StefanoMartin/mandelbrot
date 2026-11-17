@@ -356,6 +356,11 @@ figure {
   flex-direction: column;
 }
 
+/* A hidden figure leaves all the room to the other one. */
+figure[hidden] {
+  display: none;
+}
+
 /* The canvas fills this box; its size in pixels is set from script. */
 .plate {
   position: relative;
@@ -433,6 +438,27 @@ canvas.overlay {
   .for_touch {
     display: inline;
   }
+}
+
+/* Hide / Show both, in the upper-right corner of a figure. */
+.figure_button {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  padding: 1px 8px;
+  font-size: 13px;
+  background: #fbf9f3;
+  border: 1px solid #8c8676;
+  opacity: 0.85;
+}
+
+.figure_button:hover {
+  opacity: 1;
+}
+
+/* The panel of a hidden figure. */
+fieldset.muted {
+  opacity: 0.55;
 }
 
 /* The mark of c on Fig. 1, centred on its position; set from script. */

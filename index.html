@@ -60,6 +60,16 @@
             </td>
           </tr>
           <tr>
+            <th>Show</th>
+            <td>
+              <select id="show" title="Show both figures, or one of them using all the room">
+                <option value="both">Both figures</option>
+                <option value="mandelbrot">Fig. 1 only</option>
+                <option value="julia">Fig. 2 only</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
             <th>Colours</th>
             <td><select id="palette" title="Inks and paper"></select></td>
           </tr>
@@ -84,7 +94,7 @@
         <p class="buttons"><button type="button" id="reset">Reset both figures</button></p>
       </fieldset>
 
-      <fieldset>
+      <fieldset id="m_panel">
         <legend>Fig. 1 &middot; <span id="m_legend">Mandelbrot set</span></legend>
         <table class="controls readout">
           <tr><th>Formula</th><td id="m_formula"><i>z</i><sup>2</sup> + <i>c</i>, from <i>z</i> = 0</td></tr>
@@ -101,7 +111,7 @@
         </p>
       </fieldset>
 
-      <fieldset>
+      <fieldset id="j_panel">
         <legend>Fig. 2 &middot; Julia set</legend>
         <table class="controls readout">
           <tr><th>Formula</th><td id="j_formula"><i>z</i><sup>2</sup> + <i>c</i></td></tr>
@@ -215,6 +225,7 @@
           <canvas id="mandelbrot"></canvas>
           <canvas id="mandelbrot_orbit" class="overlay"></canvas>
           <div class="orbit_note" id="mandelbrot_note"></div>
+          <button type="button" class="figure_button" id="m_hide">Hide</button>
           <!-- Where c is: a sighting mark, pale ring under dark ink so it shows on any colours. -->
           <svg id="marker" class="marker" width="25" height="25" viewBox="-12.5 -12.5 25 25" aria-hidden="true">
             <g class="halo">
@@ -232,6 +243,7 @@
           <canvas id="julia"></canvas>
           <canvas id="julia_orbit" class="overlay"></canvas>
           <div class="orbit_note" id="julia_note"></div>
+          <button type="button" class="figure_button" id="j_hide">Hide</button>
         </div>
         <figcaption><span class="fig">Fig. 2.</span> The Julia set of <i>c</i> = <span id="caption_c">&minus;0.8 + 0.16<i>i</i></span>.</figcaption>
       </figure>

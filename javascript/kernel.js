@@ -23,10 +23,13 @@ function fractalKernel(scope) {
   var lastMod2 = 0;       // |z|^2 when escape() last saw a point escape
 
   // Colour on the blend at position c (0..3) of a scheme, written as RGBA
-  // bytes at o. From points that escape at once (stops[0]) to those that
-  // escape last (stops[3]).
+  // bytes at o. From points that escape at once (the first stop) to those
+  // that escape last (the last stop); a scheme may have any number of stops,
+  // spread evenly over 0..3.
   function blend(colours, c, bytes, o) {
-    var seg = c < 1 ? 0 : (c < 2 ? 1 : 2), u = c - seg;
+    var last = colours.stops.length - 1;
+    var pos = last === 3 ? c : c * last / 3;   // four stops: exactly as before
+    var seg = Math.min(last - 1, Math.floor(pos)), u = pos - seg;
     var a = colours.stops[seg], b = colours.stops[seg + 1];
     for (var k = 0; k < 3; k++) { bytes[o + k] = a[k] + (b[k] - a[k]) * u; }
     bytes[o + 3] = 255;
@@ -37,8 +40,12 @@ function fractalKernel(scope) {
   // put on a log scale from 0 to 3; 0 (never escaped) gets `inside`.
   // Smooth shading: FINE colours along the blend, plus `inside` at the end.
   // colours = { key, inside: [r,g,b], stops: four [r,g,b] }
-  function palette(colours, maxIter, smooth) {
-    var key = colours.key + ":" + (smooth ? "smooth" : maxIter);
+  // low, high: for banded shading, the counts where the blend starts and ends
+  // (0 and maxIter, or see valueRange).
+  function palette(colours, maxIter, smooth, low, high) {
+    low = low || 0;
+    high = high || maxIter;
+    var key = colours.key + ":" + (smooth ? "smooth" : maxIter + "/" + low + "/" + high);
     if (palettes[key]) { return palettes[key]; }
     var size = smooth ? FINE + 1 : maxIter + 1;
     var bytes = new Uint8ClampedArray(size * 4);
@@ -47,7 +54,10 @@ function fractalKernel(scope) {
         bytes[i * 4] = colours.inside[0]; bytes[i * 4 + 1] = colours.inside[1];
         bytes[i * 4 + 2] = colours.inside[2]; bytes[i * 4 + 3] = 255;
       } else {
-        var c = smooth ? 3 * i / (FINE - 1) : 3 * Math.log(i + 1) / Math.log(maxIter + 1);
+        var c = smooth ? 3 * i / (FINE - 1)
+          : low || high !== maxIter
+            ? Math.min(3, 3 * Math.log((i > low ? i - low : 0) + 1) / Math.log(high - low + 1))
+          : 3 * Math.log(i + 1) / Math.log(maxIter + 1);
         blend(colours, c, bytes, i * 4);
       }
     }
@@ -107,7 +117,9 @@ function fractalKernel(scope) {
     var out = new Uint32Array(w * (rowEnd - rowStart));
     var n = p.power, maxIter = p.maxIter;
     var smooth = !!p.smooth && fm.smooth;
-    var lut = palette(p.colours, maxIter, smooth);
+    // Where the blend starts and ends: 0 and maxIter, or see valueRange.
+    var low = p.low || 0, high = p.high || maxIter;
+    var lut = palette(p.colours, maxIter, smooth, low, high);
     var inside = smooth ? lut[FINE] : lut[0];
     var bail = smooth ? BAIL_SMOOTH : fm.bail;
     // The degree d of the formula, for smooth shading: given, the power n,
@@ -115,7 +127,7 @@ function fractalKernel(scope) {
     // log|z_k| / log|z_k-1| tends to d once z is large.
     var logD = fm.degree > 1 ? Math.log(fm.degree) : (fm.degree === 0 && n > 1 ? Math.log(n) : 0);
     var estimate = fm.id === "custom";
-    var toFine = (FINE - 1) / Math.log(maxIter + 1);
+    var toFine = (FINE - 1) / Math.log(high - low + 1);
     var xr = (p.x1 - p.x0) / p.width;
     var yr = (p.y1 - p.y0) / p.height;
     var isM = p.type === "mandelbrot";
@@ -138,7 +150,7 @@ function fractalKernel(scope) {
           nu = it + 1 - Math.log(0.5 * Math.log(m0) / Math.LN2) / ld;
         }
         if (!(nu >= 0)) { nu = 0; }
-        var f = Math.log(nu + 1) * toFine;
+        var f = Math.log((nu > low ? nu - low : 0) + 1) * toFine;
         out[idx++] = lut[f >= FINE - 1 ? FINE - 1 : (f + 0.5) | 0];
       }
     }
@@ -207,9 +219,10 @@ function fractalKernel(scope) {
     var k = pointContext(p);
     var w = p.width, h = p.height;
     var out = new Uint32Array(w * (rowEnd - rowStart));
+    var low = p.low || 0, high = p.high || p.maxIter;
     var lut = palette(p.colours, p.maxIter, true);
-    var toFine = (FINE - 1) / Math.log(p.maxIter + 1);
-    var paper = p.colours.stops[0], ink = p.colours.stops[3], inside = lut[FINE];
+    var toFine = (FINE - 1) / Math.log(high - low + 1);
+    var paper = p.colours.stops[0], ink = p.colours.stops[p.colours.stops.length - 1], inside = lut[FINE];
     var logD = k.logD > 0 ? k.logD : Math.LN2;
     var scale = p.lineScale || 1;   // canvas pixels per CSS pixel
     var xr = (p.x1 - p.x0) / p.width;
@@ -245,7 +258,7 @@ function fractalKernel(scope) {
         }
         var t = d / LINE_WIDTH, s = t >= 1 ? 0 : (1 - t) * (1 - t);   // ink strength
         // Under the ink, a light version of the smooth shading.
-        var f = Math.log(c + 1) * toFine;
+        var f = Math.log((c > low ? c - low : 0) + 1) * toFine;
         var shade = lut[f >= FINE - 1 ? FINE - 1 : (f + 0.5) | 0];
         var rgb = [shade & 255, (shade >>> 8) & 255, (shade >>> 16) & 255];
         var col = 0;
@@ -271,14 +284,16 @@ function fractalKernel(scope) {
     var n = p.power, maxIter = p.maxIter;
     // Smooth shading needs a power of at least 2 (it divides by log n).
     var smooth = !!p.smooth && n >= 2;
-    var lut = palette(p.colours, maxIter, smooth);
+    // Where the blend starts and ends: 0 and maxIter, or see valueRange.
+    var low = p.low || 0, high = p.high || maxIter;
+    var lut = palette(p.colours, maxIter, smooth, low, high);
     var inside = smooth ? lut[FINE] : lut[0];
     var bail = smooth ? BAIL_SMOOTH : 4;
     // Smooth shading: the "normalised iteration count"
     //   nu = count + 1 - log(log|z| / log 2) / log n,
     // which grows continuously instead of in steps, then the same log scale.
     var invLogN = 1 / Math.log(n), invLog2 = 1 / Math.LN2;
-    var toFine = (FINE - 1) / Math.log(maxIter + 1);
+    var toFine = (FINE - 1) / Math.log(high - low + 1);
     var xr = (p.x1 - p.x0) / p.width;
     var yr = (p.y1 - p.y0) / p.height;
     var isM = p.type === "mandelbrot";
@@ -308,11 +323,30 @@ function fractalKernel(scope) {
         if (!smooth) { out[idx++] = lut[it]; continue; }
         var nu = it + 1 - Math.log(0.5 * Math.log(lastMod2) * invLog2) * invLogN;
         if (nu < 0) { nu = 0; }
-        var f = Math.log(nu + 1) * toFine;
+        var f = Math.log((nu > low ? nu - low : 0) + 1) * toFine;
         out[idx++] = lut[f >= FINE - 1 ? FINE - 1 : (f + 0.5) | 0];
       }
     }
     return out;
+  }
+
+  // The range of smooth counts in a view, from an n x n grid of points (its
+  // edges included): [smallest, 95th percentile], or null if no point of the
+  // grid escapes. Colour schemes that adapt to the view spread their blend
+  // over this range, so every view uses the whole range of colours; the
+  // slowest few points, along the set, take the last colour.
+  function valueRange(p, n) {
+    var k = pointContext(p), values = [];
+    for (var j = 0; j < n; j++) {
+      var y = -(p.y0 + (p.y1 - p.y0) * j / (n - 1));
+      for (var i = 0; i < n; i++) {
+        var v = pointValue(k, p.x0 + (p.x1 - p.x0) * i / (n - 1), y);
+        if (v >= 0) { values.push(v); }
+      }
+    }
+    if (!values.length) { return null; }
+    values.sort(function (a, b) { return a - b; });
+    return [values[0], values[Math.floor((values.length - 1) * 0.95)]];
   }
 
   // When loaded as a worker: answer render requests for row ranges.
@@ -325,29 +359,37 @@ function fractalKernel(scope) {
     };
   }
 
-  return { renderRows: renderRows, escape: escape };
+  return { renderRows: renderRows, escape: escape, valueRange: valueRange };
 }
 
 var FractalKernel = fractalKernel(null);
 
-// Colour schemes, one blend per figure (see palette() above). "Classic" is the
-// original look of this page.
+// Colour schemes, one blend per figure (see palette() above), from the points
+// that escape at once (first stop) to those that escape last (last stop),
+// and the colour of the inside of the set. Schemes that adapt spread their
+// stops over the escape counts found in the view (see valueRange), so the
+// evolution towards the set shows at every zoom; their last stop stands out
+// from the inside, so the edge of the set stays crisp. Sepia and Classic
+// keep the first look of this page ("Classic" is its original look).
 var PALETTES = [
-  { name: "Ink on paper",
-    mandelbrot: { stops: ["#fbf9f3", "#d6c7a1", "#6e5034", "#1e1e1e"], inside: "#1e1e1e" },
-    julia:      { stops: ["#fbf9f3", "#c9d2d8", "#3f5f80", "#1a3150"], inside: "#1a3150" } },
+  { name: "Ink on paper", adaptive: true,
+    mandelbrot: { stops: ["#fbf9f3", "#f1e6c8", "#dcc08a", "#c08a52", "#a2522f", "#7e2622"], inside: "#1c1a22" },
+    julia:      { stops: ["#fbf9f3", "#e4ece7", "#b3cfc8", "#76a8b3", "#4a7fa3", "#2f5687"], inside: "#161a2e" } },
   { name: "Sepia",
     mandelbrot: { stops: ["#f3efe4", "#e0c9a6", "#9c6b3c", "#3b2615"], inside: "#3b2615" },
     julia:      { stops: ["#f3efe4", "#e0c9a6", "#9c6b3c", "#3b2615"], inside: "#3b2615" } },
-  { name: "Red and green ink",
-    mandelbrot: { stops: ["#fbf9f3", "#e8c4b4", "#a83424", "#4a1810"], inside: "#4a1810" },
-    julia:      { stops: ["#fbf9f3", "#c9d8c4", "#2f6b3a", "#163a1e"], inside: "#163a1e" } },
-  { name: "Blueprint",
-    mandelbrot: { stops: ["#0b3d6e", "#1d5a94", "#7fbfff", "#ffffff"], inside: "#0b3d6e" },
-    julia:      { stops: ["#0b3d6e", "#1d5a94", "#7fbfff", "#ffffff"], inside: "#0b3d6e" } },
+  { name: "Watercolour", adaptive: true,
+    mandelbrot: { stops: ["#fbf9f3", "#f7eab2", "#f3c27f", "#e8896e", "#c95a86", "#8a4aa6"], inside: "#1d1b38" },
+    julia:      { stops: ["#fbf9f3", "#e0f0dc", "#a6d6bf", "#6bb5b8", "#5a86bd", "#6a55a8"], inside: "#22183a" } },
+  { name: "Night", adaptive: true,
+    mandelbrot: { stops: ["#0b1626", "#123047", "#1d5c6e", "#3c9a8f", "#f2c14e", "#f08a4b", "#fff3e0"], inside: "#0b1626" },
+    julia:      { stops: ["#0b1626", "#1c2a55", "#3b3f8f", "#8f4f9c", "#d9667a", "#f1b16e", "#fdf2d0"], inside: "#0b1626" } },
   { name: "Classic",
     mandelbrot: { stops: ["#000000", "#ff0000", "#ffff00", "#ffffff"], inside: "#ffffc8" },
-    julia:      { stops: ["#000000", "#0000ff", "#00ffff", "#ffffff"], inside: "#ffffff" } }
+    julia:      { stops: ["#000000", "#0000ff", "#00ffff", "#ffffff"], inside: "#ffffff" } },
+  { name: "Atlas", adaptive: true,
+    mandelbrot: { stops: ["#f4f1e6", "#dfe8c8", "#b7d39a", "#e6cf86", "#d49a5a", "#ad5a37"], inside: "#2b1d1a" },
+    julia:      { stops: ["#f4f1e6", "#dae9ee", "#a8d0e0", "#6fb0d2", "#4686bf", "#2d5f9e"], inside: "#101c33" } }
 ];
 
 var hexToRgb = function (hex) {
@@ -359,6 +401,7 @@ var hexToRgb = function (hex) {
 var paletteFor = function (index, type) {
   var p = PALETTES[index] || PALETTES[0];
   return { key: p.name + "/" + type,
+           adaptive: !!p.adaptive,
            inside: hexToRgb(p[type].inside),
            stops: p[type].stops.map(hexToRgb) };
 };

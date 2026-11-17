@@ -63,7 +63,7 @@ var region = function(f){
 // Everything the renderer needs to draw a figure.
 var viewParams = function(f){
 	var r = region(f);
-	return {
+	var params = {
 		type: f.type, width: f.width, height: f.height,
 		// The kernel counts rows downwards: row j is at imaginary part -(y0 + j * step).
 		x0: r.x0, x1: r.x1, y0: -r.top, y1: -r.bottom,
@@ -75,6 +75,16 @@ var viewParams = function(f){
 		lines: settings.lines,
 		lineScale: f.dpr
 	};
+	// Schemes that adapt spread their colours over the escape counts in view,
+	// found from a quick 24 x 24 sample of it.
+	if (params.colours.adaptive){
+		var range = FractalKernel.valueRange(params, 24);
+		if (range){
+			params.low = Math.max(0, Math.floor(range[0]) - 1);
+			params.high = Math.min(f.iteration, Math.max(params.low + 2, Math.ceil(range[1]) + 1));
+		}
+	}
+	return params;
 }
 
 // The panel readout of a figure.
@@ -333,6 +343,36 @@ var layout = function(){
 	drawOrbit();
 }
 
+// ---- Showing one figure or both ----
+
+// Show and hide the figures as settings.show says (without redrawing).
+var applyShow = function(){
+	[mandelbrot, julia].forEach(function(f){
+		var shown = figureShown(f);
+		byId(f.type).closest("figure").hidden = !shown;
+		byId(f.prefix + "_panel").classList.toggle("muted", !shown);
+		byId(f === mandelbrot ? "save_m" : "save_j").disabled = !shown;
+		var button = byId(f.prefix + "_hide");
+		button.textContent = settings.show === "both" ? "Hide" : "Show both";
+		button.title = settings.show === "both" ? "Hide this figure; the other one takes all the room"
+		                                        : "Show both figures again";
+	});
+	byId("show").value = settings.show;
+}
+
+var setShow = function(show){
+	settings.show = show;
+	if (show !== "both" && orbit.f && !figureShown(orbit.f)) { hideOrbit(); }
+	applyShow();
+	layout();
+	build();
+}
+
+// The button in the corner of a figure: hide it, or show both again.
+var toggleFigure = function(f){
+	setShow(settings.show === "both" ? (f === mandelbrot ? "julia" : "mandelbrot") : "both");
+}
+
 // ---- Keys ----
 
 // Keys that move a figure: [figure, dx, dy].
@@ -483,6 +523,7 @@ var showSettings = function(){
 	byId("power").classList.remove("invalid");
 	byId("palette").value = String(settings.palette);
 	byId("shading").value = shadingName();
+	applyShow();
 	var id = settings.formula;
 	byId("formula").value = id;
 	byId("row_p").hidden = id !== "phoenix";
@@ -496,7 +537,8 @@ var showSettings = function(){
 
 // ---- Links: the address remembers the figures ----
 
-// p = power, k = colours, s = 0 for bands or l for ink lines, m and j = centre and span
+// p = power, k = colours, s = 0 for bands or l for ink lines, v = m or j when
+// only Fig. 1 or Fig. 2 is shown, m and j = centre and span
 // of each figure, c = the point c; f = formula (when not z^n + c), with
 // fp = its p (Phoenix), fe and fs = a typed formula and its start. Opening a
 // link keeps its c, so that moving the pointer onto the page does not lose it.
@@ -514,6 +556,7 @@ var encodeState = function(){
 	return "#p=" + settings.power + formula +
 		"&k=" + settings.palette +
 		(settings.lines ? "&s=l" : (settings.smooth ? "" : "&s=0")) +
+		(settings.show === "both" ? "" : "&v=" + (settings.show === "mandelbrot" ? "m" : "j")) +
 		"&m=" + view(mandelbrot) +
 		"&j=" + view(julia) +
 		"&c=" + plain(julia.c[0], dc) + "," + plain(julia.c[1], dc);
@@ -538,6 +581,8 @@ var applyState = function(hash){
 		} else if (key === "k"){
 			v = parseInt(value, 10);
 			if (PALETTES[v]) { settings.palette = v; found = true; }
+		} else if (key === "v"){
+			settings.show = value === "m" ? "mandelbrot" : (value === "j" ? "julia" : "both"); found = true;
 		} else if (key === "f"){
 			if (formulaById(value).id === value) { settings.formula = value; found = true; }
 		} else if (key === "fp"){
@@ -564,8 +609,9 @@ var applyState = function(hash){
 			if (v) { julia.c = v; julia.set_blocked(true); found = true; }
 		}
 	});
-	// A link without a formula is about z^n + c.
+	// A link without a formula is about z^n + c, and shows both figures.
 	if (found && !/(^|&)f=/.test(text)) { settings.formula = "classic"; }
+	if (found && !/(^|&)v=/.test(text)) { settings.show = "both"; }
 	return found;
 }
 
@@ -891,6 +937,9 @@ var setupEvents = function(){
 	on("power", "input", change_power);
 	on("palette", "change", change_palette);
 	on("shading", "change", change_smooth);
+	on("show", "change", function(){ setShow(byId("show").value); });
+	on("m_hide", "click", function(){ toggleFigure(mandelbrot); });
+	on("j_hide", "click", function(){ toggleFigure(julia); });
 	on("formula", "change", change_formula);
 	on("p_re", "input", change_p);
 	on("p_im", "input", change_p);
