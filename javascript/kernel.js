@@ -145,10 +145,126 @@ function fractalKernel(scope) {
     return out;
   }
 
+  // ---- Ink lines: how far each pixel is from the set ----
+  //
+  // Outside the set, the smooth count nu grows like -log(distance) / log d
+  // as a point gets closer to the set (d is the degree of the formula). So
+  // the distance, in pixels, is about 1 / (log d * |change of nu from one
+  // pixel to the next|). Pixels within about a pixel of the set are inked;
+  // a pixel next to an inside one is on the boundary itself. This needs no
+  // derivative of the formula, so it works for every formula, typed ones too.
+
+  // What one point needs, worked out once per strip.
+  function pointContext(p) {
+    var fm = p.formula, classic = !fm || fm.id === "classic", n = p.power;
+    var smooth = classic ? n >= 2 : fm.smooth;
+    return {
+      classic: classic, run: classic ? null : loopFor(fm), n: n, maxIter: p.maxIter,
+      smooth: smooth,
+      bail: smooth ? BAIL_SMOOTH : (classic ? 4 : fm.bail),
+      logD: classic ? Math.log(n) : (fm.degree > 1 ? Math.log(fm.degree) : (fm.degree === 0 && n > 1 ? Math.log(n) : 0)),
+      estimate: !classic && fm.id === "custom",
+      isM: p.type === "mandelbrot",
+      start: classic ? [0, 0] : fm.start,
+      cr: p.cr, ci: p.ci,
+      bulb: classic && n === 2 && p.type === "mandelbrot"
+    };
+  }
+
+  // The smooth count of a point (the plain count where there is no smooth
+  // one), or -1 inside the set.
+  function pointValue(k, x, y) {
+    var it, m0, m1 = 0;
+    if (k.classic) {
+      if (k.bulb) {
+        var y2 = y * y, xq = x - 0.25, q = xq * xq + y2;
+        if (q * (q + xq) <= 0.25 * y2 || (x + 1) * (x + 1) + y2 <= 0.0625) { return -1; }
+      }
+      it = k.isM ? escape(0, 0, x, y, k.n, k.maxIter, k.bail) : escape(x, y, k.cr, k.ci, k.n, k.maxIter, k.bail);
+      m0 = lastMod2;
+    } else {
+      it = k.isM ? k.run(k.start[0], k.start[1], x, y, k.maxIter, k.bail, k.n, mods)
+                 : k.run(x, y, k.cr, k.ci, k.maxIter, k.bail, k.n, mods);
+      m0 = mods[0]; m1 = mods[1];
+    }
+    if (it === 0) { return -1; }
+    if (!k.smooth) { return it; }
+    var ld = k.logD;
+    if (k.estimate) {
+      ld = (m1 > 4 && m0 > m1 && m0 < Infinity) ? Math.log(Math.log(m0) / Math.log(m1)) : Math.LN2;
+      if (!(ld > 0.05)) { ld = Math.LN2; }
+    }
+    var nu = it;
+    if (m0 > 1 && m0 < Infinity && ld > 0) { nu = it + 1 - Math.log(0.5 * Math.log(m0) / Math.LN2) / ld; }
+    return nu > 0 ? nu : 0;
+  }
+
+  var LINE_WIDTH = 1.0;   // CSS pixels: no ink beyond this distance from the set
+  var BOUNDARY = 0.25;    // distance taken for a pixel next to an inside one
+  var UNDERTONE = 0.18;   // how much of the smooth shading shows under the lines
+
+  function renderLines(p, rowStart, rowEnd) {
+    var k = pointContext(p);
+    var w = p.width, h = p.height;
+    var out = new Uint32Array(w * (rowEnd - rowStart));
+    var lut = palette(p.colours, p.maxIter, true);
+    var toFine = (FINE - 1) / Math.log(p.maxIter + 1);
+    var paper = p.colours.stops[0], ink = p.colours.stops[3], inside = lut[FINE];
+    var logD = k.logD > 0 ? k.logD : Math.LN2;
+    var scale = p.lineScale || 1;   // canvas pixels per CSS pixel
+    var xr = (p.x1 - p.x0) / p.width;
+    var yr = (p.y1 - p.y0) / p.height;
+
+    // The values of the rows of the strip, and of one row above and below it
+    // (for the change from pixel to pixel at its edges).
+    var first = Math.max(0, rowStart - 1), last = Math.min(h - 1, rowEnd);
+    var rows = last - first + 1;
+    var v = new Float64Array(w * rows);
+    for (var r = 0; r < rows; r++) {
+      var y = -((first + r) * yr + p.y0);
+      for (var i = 0; i < w; i++) { v[r * w + i] = pointValue(k, i * xr + p.x0, y); }
+    }
+
+    var idx = 0;
+    for (var j = rowStart; j < rowEnd; j++) {
+      var r0 = j - first;
+      var up = j > first ? r0 - 1 : r0, down = j < last ? r0 + 1 : r0;
+      for (var i2 = 0; i2 < w; i2++) {
+        var c = v[r0 * w + i2];
+        if (c < 0) { out[idx++] = inside; continue; }
+        var left = i2 > 0 ? v[r0 * w + i2 - 1] : c, right = i2 < w - 1 ? v[r0 * w + i2 + 1] : c;
+        var above = v[up * w + i2], below = v[down * w + i2];
+        var d;   // distance to the set, in CSS pixels
+        if (left < 0 || right < 0 || above < 0 || below < 0) {
+          d = BOUNDARY;   // the boundary passes through this pixel
+        } else {
+          var gx = (right - left) / (i2 > 0 && i2 < w - 1 ? 2 : 1);
+          var gy = (below - above) / (down - up || 1);
+          var g = Math.sqrt(gx * gx + gy * gy);
+          d = g > 0 ? 1 / (logD * g) / scale : Infinity;
+        }
+        var t = d / LINE_WIDTH, s = t >= 1 ? 0 : (1 - t) * (1 - t);   // ink strength
+        // Under the ink, a light version of the smooth shading.
+        var f = Math.log(c + 1) * toFine;
+        var shade = lut[f >= FINE - 1 ? FINE - 1 : (f + 0.5) | 0];
+        var rgb = [shade & 255, (shade >>> 8) & 255, (shade >>> 16) & 255];
+        var col = 0;
+        for (var q = 0; q < 3; q++) {
+          var base = paper[q] + (rgb[q] - paper[q]) * UNDERTONE;
+          var val = Math.round(base + (ink[q] - base) * s);
+          col |= (val < 0 ? 0 : val > 255 ? 255 : val) << (8 * q);
+        }
+        out[idx++] = (col | 0xff000000) >>> 0;
+      }
+    }
+    return out;
+  }
+
   // Render rows [rowStart, rowEnd) of a view into packed RGBA pixels.
   // p = { type, width, height, x0, x1, y0, y1, power, maxIter, cr, ci, colours,
-  //       smooth, formula }
+  //       smooth, lines, lineScale, formula }
   function renderRows(p, rowStart, rowEnd) {
+    if (p.lines) { return renderLines(p, rowStart, rowEnd); }
     if (p.formula && p.formula.id !== "classic") { return renderFormula(p, rowStart, rowEnd); }
     var w = p.width;
     var out = new Uint32Array(w * (rowEnd - rowStart));

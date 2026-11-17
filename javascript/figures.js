@@ -8,7 +8,8 @@ var settings = {
   custom: { expr: "z^3 + z^2 + c", start: "0" },   // a typed formula
   power: 2,       // the exponent n in z^n + c
   palette: 0,     // index into PALETTES (kernel.js)
-  smooth: true    // smooth shading instead of bands
+  smooth: true,   // smooth shading instead of bands
+  lines: false    // ink lines along the set (with smooth shading under them)
 };
 
 // type: "mandelbrot" or "julia" (also the id of its canvas);
@@ -20,6 +21,7 @@ var makeFigure = function(type, prefix, base_iteration){
     prefix: prefix,
     width: 400,      // canvas size in pixels, set by layout()
     height: 400,
+    dpr: 1,          // canvas pixels per CSS pixel, set by layout()
     // The view: centre (cx, cy) in the complex plane, and the length of the
     // shorter side of the canvas. The longer side shows proportionally more.
     cx: 0,

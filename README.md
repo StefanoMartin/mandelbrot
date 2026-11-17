@@ -16,7 +16,7 @@ page works offline, also straight from disk.
 | Mouse wheel | zooms in or out at the pointer |
 | `W` `A` `S` `D` | move Fig. 1 |
 | Arrow keys | move Fig. 2 |
-| `Space` | keeps or frees *c* |
+| `K` | keeps or frees *c* |
 | `O` | shows or hides the orbit |
 
 In the panel:
@@ -24,8 +24,13 @@ In the panel:
 - **Formula** chooses the rule *z* → *f*(*z*, *c*) both figures follow (see
   below).
 - **Power** changes the formula to *z*ⁿ + *c* (n from 1 to 10).
-- **Colours** and **Shading**: five colour schemes, with smooth shading or the
-  classic bands. *Classic* with bands off is the original look of the page.
+- **Colours** and **Shading**: five colour schemes, and three ways to shade
+  the outside of the set: *Smooth*, *Bands* (with *Classic* colours, the
+  original look of the page) and *Ink lines*, which draws the edge of the set
+  and its finest filaments as thin lines, like an engraving. Ink lines
+  estimate the distance of each pixel to the set from how fast the smooth
+  shading changes between neighbouring pixels, so they work for every
+  formula, typed ones too.
 - ***c***: type a value, or pick a famous Julia set (Douady's rabbit, the
   Basilica, the Airplane, …). A typed or picked *c* is kept.
 - **Orbit**: shows the path *z* takes, step by step, from the point under the
@@ -34,7 +39,13 @@ In the panel:
   of the figure says what happens: the orbit escapes at some step, settles on
   a fixed point or a cycle, or stays bounded. A point belongs to the set
   exactly when its orbit never escapes.
-- **Save**: each figure as a PNG at full resolution, or a link.
+- **Places and pictures**: go to a place worth seeing (Seahorse Valley,
+  Elephant Valley, a mini Mandelbrot set, the little Burning Ship…), or keep
+  what the figures show among your favourites, by name. Favourites stay in
+  this browser and can be saved to a file and loaded from one, to keep them
+  or to move them to another browser. Each figure can be saved as a PNG, as
+  on the screen or drawn again two or four times as large (in the
+  background, up to 40 million pixels).
 
 ## Formulas
 
@@ -64,8 +75,12 @@ and arg. The formula is read as maths only and turned into a fast loop; a
 mistake is explained under the field while the last working formula stays
 drawn.
 
-The address always describes the figures (formula, power, colours, both views and *c*),
-so it can be bookmarked or shared. Opening a link keeps its *c*.
+The address always describes the figures (formula, power, colours, shading,
+both views and *c*), so it can be bookmarked or shared. Opening a link keeps
+its *c*. Back and Forward in the browser go through the views explored: a
+change after a pause of more than a second is a new step, changes in quick
+succession (turning the wheel, a drag) are one step, and *c* following the
+pointer never adds one.
 
 The deeper the zoom, the more iterations are used: 200 at the start for the
 Mandelbrot set and 100 for the Julia set, plus 100 for every 5× of zoom.

@@ -181,6 +181,47 @@ button.zoom + button.zoom + button {
   margin-left: 10px;
 }
 
+/* ---- Places and pictures ---- */
+
+.save_label {
+  margin: 8px 0 2px;
+  font-size: 13px;
+  font-style: italic;
+  color: #4a463c;
+}
+
+.save_label:first-of-type {
+  margin-top: 2px;
+}
+
+.preset,
+.favourite_save {
+  display: flex;
+  margin: 4px 0 4px;
+}
+
+.preset select {
+  flex: 1;
+  min-width: 0;
+}
+
+#deleteFavourite {
+  margin-left: 6px;
+}
+
+#favourite_name {
+  flex: 1;
+  min-width: 0;
+  margin-right: 6px;
+  padding: 1px 4px;
+  font: inherit;
+  font-size: 14px;
+  color: #222;
+  background: #fbf9f3;
+  border: 1px solid #8c8676;
+  border-radius: 0;
+}
+
 /* A typed formula. */
 .text_field {
   width: 100%;
@@ -465,7 +506,7 @@ figcaption .fig {
     font-size: 16px;
   }
 
-  select, .number_field, .text_field {
+  select, .number_field, .text_field, #favourite_name {
     min-height: 32px;
     font-size: 16px;
   }
