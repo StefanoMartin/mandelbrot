@@ -1,123 +1,106 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <!-- Required meta tags -->
-   <meta charset="utf-8">
-   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mandelbrot and Julia</title>
 
-    <!-- CSS only -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
-
-    <!-- JS, Popper.js, and jQuery -->
-    <script
-    src="https://code.jquery.com/jquery-3.5.1.min.js"
-    integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
-    crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="css/style.css">
 
     <script src="javascript/kernel.js"></script>
     <script src="javascript/renderer.js"></script>
     <script src="javascript/mandelbrot.js"></script>
     <script src="javascript/julia.js"></script>
     <script src="javascript/main.js"></script>
-    <link rel="stylesheet" href="css/wrapper.css"/>
-    <link rel="stylesheet" href="css/button.css">
   </head>
 
   <body>
-    <div class="sidebar">
-      <div class="sidebar-header">
-        <h3>Mandelbrot - Julia</h3>
-      </div>
+    <div id="panel">
+      <h1>Mandelbrot and Julia</h1>
+      <p class="intro">
+        Every point <i>c</i> of the plane has a Julia set of its own.
+        Move the pointer over the first figure to choose <i>c</i>;
+        the second figure shows its Julia set.
+      </p>
 
-      <div class="container">
-        <div class="row">
-          <div class="col-5 offset-1 cta">Power</div>
-          <div class="col-5 cta">
-            <input class="number_slide" id="power" type="number" value="2" min="1" max="10" step="1">
-          </div>
-        </div>
+      <fieldset>
+        <legend>Settings</legend>
+        <table class="controls">
+          <tr>
+            <th>Power</th>
+            <td>
+              <div class="step_box">
+                <input class="number_field" type="number" id="power" value="2" min="1" max="10" step="1"
+                  title="The exponent n in z&#8319; + c"><button type="button" class="step" data-target="power"
+                  data-step="-1" title="Lower the power">&minus;</button><button type="button" class="step"
+                  data-target="power" data-step="1" title="Raise the power">+</button>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <th>Colours</th>
+            <td><select id="palette" title="Inks and paper"></select></td>
+          </tr>
+        </table>
+        <p class="buttons"><button type="button" id="reset">Reset both figures</button></p>
+      </fieldset>
 
-        <div class="row">
-          <div class="col-5 offset-1 cta">Size canvas</div>
-          <div class="col-5 cta">
-            <input class="number_slide" id="size_canvas" type="number" value="400" min="50" max="1500" step="10">
-          </div>
-        </div>
-      </div>
-      <div class="cta" style="margin-top: 10px;">
-        <a href="#" class="m_button" id="reset">Reset all</a>
-      </div>
-
-      <hr/>
-
-      <div class="container">
-        <div class="row">
-          <div class="col-12 cta"><h4>Mandelbrot set</h4></div>
-        </div>
-        <div class="row">
-          <div class="col-12 cta">x^<span id=p_m_1>2</span> + c</div>
-        </div>
-        <div class="row">
-          <div class="col-12 cta"><span id=p_m_2>[-2,2]</span> &times; <span id=p_m_3>[-2,2]</span></div>
-        </div>
-        <div class="row">
-          <div class="col-12 cta">Iterations: <span id=p_m_4>200</span></div>
-        </div>
-        <div class="row">
-          <div class="col-12 cta"><span id=loading_m></span></div>
-        </div>
-      </div>
-      <div class="cta" style="margin-top: 10px;">
-        <a href="#" class="m_button" id="zoom_out_m">Zoom out</a>
-        <a href="#" class="m_button" id="reset_m">Reset</a>
-      </div>
-      <hr/>
-
-      <div class="container">
-        <div class="row">
-          <div class="col-12 cta"><h4>Julia set</h4></div>
-        </div>
-        <div class="row">
-          <div class="col-12 cta">x^<span id=p_j_1>2</span> + (<span id=p_j_2>-2</span>) + i(<span id=p_j_3>2</span>)</div>
-        </div>
-        <div class="row">
-          <div class="col-12 cta"><span id=p_j_4>[-2,2]</span> &times; <span id=p_j_5>[-2,2]</span></div>
-        </div>
-        <div class="row">
-          <div class="col-12 cta">Iterations: <span id=p_j_6>100</span></div>
-        </div>
-        <div class="row">
-          <div class="col-12 cta"><span id=loading_j></span></div>
-        </div>
-      </div>
-      <div class="cta" style="margin-top: 10px;">
-        <a href="#" class="m_button" id="zoom_out_j">Zoom out</a>
-        <a href="#" class="m_button" id="reset_j">Reset</a>
-      </div>
-      <div class="cta" style="margin-top: 10px;">
-        <a href="#" class="m_button" id="blocking">Unblocked</a>
-      </div>
-      <hr/>
-
-      <div style="margin: 10px;">
-        <h4>Instruction</h4>
-        <p>
-          Move the mouse on the Mandelbrot set
-          to change the Julia set<br>
-          Double click to zoom<br>
-          Space to block/unblock the Julia set<br>
-          Use WASD to move inside Mandelbrot set<br>
-          Use directional keys to move inside Julia set<br>
+      <fieldset>
+        <legend>Fig. 1 &middot; Mandelbrot set</legend>
+        <table class="controls readout">
+          <tr><th>Formula</th><td><i>z</i><sup id="m_power">2</sup> + <i>c</i>, from <i>z</i> = 0</td></tr>
+          <tr><th>Real</th><td id="m_real">[&minus;2, 2]</td></tr>
+          <tr><th>Imaginary</th><td id="m_imag">[&minus;2, 2]</td></tr>
+          <tr><th>Zoom</th><td id="m_zoom">&times;1</td></tr>
+          <tr><th>Iterations</th><td id="m_iter">200</td></tr>
+        </table>
+        <p class="status" id="m_status">Drawing&hellip;</p>
+        <p class="buttons">
+          <button type="button" id="zoom_out_m">Zoom out</button>
+          <button type="button" id="reset_m">Reset</button>
         </p>
-      </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Fig. 2 &middot; Julia set</legend>
+        <table class="controls readout">
+          <tr><th>Formula</th><td><i>z</i><sup id="j_power">2</sup> + <i>c</i></td></tr>
+          <tr><th><i>c</i></th><td id="j_c">&minus;0.8 + 0.16<i>i</i></td></tr>
+          <tr><th>Real</th><td id="j_real">[&minus;2, 2]</td></tr>
+          <tr><th>Imaginary</th><td id="j_imag">[&minus;2, 2]</td></tr>
+          <tr><th>Zoom</th><td id="j_zoom">&times;1</td></tr>
+          <tr><th>Iterations</th><td id="j_iter">100</td></tr>
+        </table>
+        <p class="status" id="j_status">Drawing&hellip;</p>
+        <p><label><input type="checkbox" id="freeze"> Keep this <i>c</i> (key <kbd>Space</kbd>)</label></p>
+        <p class="buttons">
+          <button type="button" id="zoom_out_j">Zoom out</button>
+          <button type="button" id="reset_j">Reset</button>
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>How to use</legend>
+        <table class="keys">
+          <tr><th>Pointer on Fig. 1</th><td>chooses <i>c</i></td></tr>
+          <tr><th>Double-click</th><td>zooms in on that point</td></tr>
+          <tr><th><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></th><td>move Fig. 1</td></tr>
+          <tr><th><kbd>&uarr;</kbd> <kbd>&larr;</kbd> <kbd>&darr;</kbd> <kbd>&rarr;</kbd></th><td>move Fig. 2</td></tr>
+          <tr><th><kbd>Space</kbd></th><td>keeps or frees <i>c</i></td></tr>
+        </table>
+        <p class="hint">Each zoom adds detail: the number of iterations grows with it.</p>
+      </fieldset>
     </div>
 
-    <div class="outer_canvas">
-      <canvas id="mandelbrot" class="t_canvas" width="400" height="400"></canvas>
-
-      <canvas id="julia" class="t_canvas" width="400" height="400"></canvas>
+    <div id="figures">
+      <figure>
+        <div class="plate"><canvas id="mandelbrot"></canvas></div>
+        <figcaption><span class="fig">Fig. 1.</span> The Mandelbrot set.</figcaption>
+      </figure>
+      <figure>
+        <div class="plate"><canvas id="julia"></canvas></div>
+        <figcaption><span class="fig">Fig. 2.</span> The Julia set of <i>c</i> = <span id="caption_c">&minus;0.8 + 0.16<i>i</i></span>.</figcaption>
+      </figure>
     </div>
   </body>
 </html>

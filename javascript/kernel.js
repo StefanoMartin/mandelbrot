@@ -19,25 +19,26 @@ function fractalKernel(scope) {
   var palettes = {};
 
   // Packed RGBA colour (as a little-endian Uint32) for every iteration count
-  // 0..maxIter, using the original colour_point / colour_point2 formulas.
-  function palette(scheme, maxIter) {
-    var key = scheme + ":" + maxIter;
+  // 0..maxIter. colours = { key, inside: [r,g,b], stops: four [r,g,b] }:
+  // 0 iterations (never escaped) gets `inside`; otherwise the count is put on
+  // a log scale from 0 to 3 and blended along the four stops, from points
+  // that escape at once (stops[0]) to those that escape last (stops[3]).
+  function palette(colours, maxIter) {
+    var key = colours.key + ":" + maxIter;
     if (palettes[key]) { return palettes[key]; }
     var bytes = new Uint8ClampedArray((maxIter + 1) * 4);
+    var stops = colours.stops;
     for (var i = 0; i <= maxIter; i++) {
-      var o = i * 4, r, g, b;
+      var o = i * 4;
       if (i === 0) {
-        r = 255; g = 255; b = scheme === "mandelbrot" ? 200 : 255;
+        bytes[o] = colours.inside[0]; bytes[o + 1] = colours.inside[1]; bytes[o + 2] = colours.inside[2];
       } else {
         var c = 3 * Math.log(i + 1) / Math.log(maxIter + 1);
-        var lo, mid, hi;
-        if (c < 1)      { lo = 255 * c; mid = 0;               hi = 0; }
-        else if (c < 2) { lo = 255;     mid = 255 * (c - 1);   hi = 0; }
-        else            { lo = 255;     mid = 255;             hi = 255 * (c - 2); }
-        if (scheme === "mandelbrot") { r = lo; g = mid; b = hi; }  // black-red-yellow-white
-        else                         { r = hi; g = mid; b = lo; }  // black-blue-cyan-white
+        var seg = c < 1 ? 0 : (c < 2 ? 1 : 2), u = c - seg;
+        var a = stops[seg], b = stops[seg + 1];
+        for (var k = 0; k < 3; k++) { bytes[o + k] = a[k] + (b[k] - a[k]) * u; }
       }
-      bytes[o] = r; bytes[o + 1] = g; bytes[o + 2] = b; bytes[o + 3] = 255;
+      bytes[o + 3] = 255;
     }
     var lut = new Uint32Array(bytes.buffer);
     palettes[key] = lut;
@@ -75,11 +76,11 @@ function fractalKernel(scope) {
   }
 
   // Render rows [rowStart, rowEnd) of a view into packed RGBA pixels.
-  // p = { type, width, height, x0, x1, y0, y1, power, maxIter, cr, ci }
+  // p = { type, width, height, x0, x1, y0, y1, power, maxIter, cr, ci, colours }
   function renderRows(p, rowStart, rowEnd) {
     var w = p.width;
     var out = new Uint32Array(w * (rowEnd - rowStart));
-    var lut = palette(p.type, p.maxIter);
+    var lut = palette(p.colours, p.maxIter);
     var xr = (p.x1 - p.x0) / p.width;
     var yr = (p.y1 - p.y0) / p.height;
     var n = p.power, maxIter = p.maxIter;
@@ -125,3 +126,36 @@ function fractalKernel(scope) {
 }
 
 var FractalKernel = fractalKernel(null);
+
+// Colour schemes, one blend per figure (see palette() above). "Classic" is the
+// original look of this page.
+var PALETTES = [
+  { name: "Ink on paper",
+    mandelbrot: { stops: ["#fbf9f3", "#d6c7a1", "#6e5034", "#1e1e1e"], inside: "#1e1e1e" },
+    julia:      { stops: ["#fbf9f3", "#c9d2d8", "#3f5f80", "#1a3150"], inside: "#1a3150" } },
+  { name: "Sepia",
+    mandelbrot: { stops: ["#f3efe4", "#e0c9a6", "#9c6b3c", "#3b2615"], inside: "#3b2615" },
+    julia:      { stops: ["#f3efe4", "#e0c9a6", "#9c6b3c", "#3b2615"], inside: "#3b2615" } },
+  { name: "Red and green ink",
+    mandelbrot: { stops: ["#fbf9f3", "#e8c4b4", "#a83424", "#4a1810"], inside: "#4a1810" },
+    julia:      { stops: ["#fbf9f3", "#c9d8c4", "#2f6b3a", "#163a1e"], inside: "#163a1e" } },
+  { name: "Blueprint",
+    mandelbrot: { stops: ["#0b3d6e", "#1d5a94", "#7fbfff", "#ffffff"], inside: "#0b3d6e" },
+    julia:      { stops: ["#0b3d6e", "#1d5a94", "#7fbfff", "#ffffff"], inside: "#0b3d6e" } },
+  { name: "Classic",
+    mandelbrot: { stops: ["#000000", "#ff0000", "#ffff00", "#ffffff"], inside: "#ffffc8" },
+    julia:      { stops: ["#000000", "#0000ff", "#00ffff", "#ffffff"], inside: "#ffffff" } }
+];
+
+var hexToRgb = function (hex) {
+  var n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+
+// The colours of palette number `index` for one figure, ready for renderRows().
+var paletteFor = function (index, type) {
+  var p = PALETTES[index] || PALETTES[0];
+  return { key: p.name + "/" + type,
+           inside: hexToRgb(p[type].inside),
+           stops: p[type].stops.map(hexToRgb) };
+};

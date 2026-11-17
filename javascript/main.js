@@ -1,5 +1,76 @@
 var POWER_MIN = 1, POWER_MAX = 10;
-var SIZE_MIN = 50, SIZE_MAX = 1500;
+var PALETTE_KEY = "mandelbrot-julia.palette";
+
+var byId = function(id){
+	return document.getElementById(id);
+}
+
+// ---- Numbers as they are shown in the panel ----
+
+// Two decimals, with a true minus sign.
+var formatNumber = function(n){
+	var r = Math.round(n * 100) / 100;
+	if (r === 0) { r = 0; }   // no "−0"
+	return String(r).replace("-", "−");
+}
+
+// Enough decimals to tell the two ends of a narrow range apart.
+var formatRange = function(r){
+	var width = Math.abs(r[1] - r[0]);
+	var decimals = Math.min(15, Math.max(2, Math.ceil(-Math.log10(width)) + 2));
+	var f = function(v){
+		var text = Math.abs(v) < 1e-15 ? "0" : v.toFixed(decimals).replace(/\.?0+$/, "");
+		return text.replace("-", "−");
+	};
+	return "[" + f(r[0]) + ", " + f(r[1]) + "]";
+}
+
+// Magnification compared with the starting view (span 4).
+var formatZoom = function(span){
+	var zoom = 4 / span;
+	return "×" + (zoom < 10 ? formatNumber(zoom) : Math.round(zoom).toLocaleString("en-US"));
+}
+
+// c as "a + bi" (HTML: the i is in italics).
+var formatComplex = function(c){
+	var im = Math.round(c[1] * 100) / 100;
+	return formatNumber(c[0]) + (im < 0 ? " − " : " + ") + formatNumber(Math.abs(im)) + "<i>i</i>";
+}
+
+// ---- Views ----
+
+// What a figure shows, from its centre, span and canvas size: the left and
+// right ends, the top and bottom, and the size of one pixel.
+var region = function(f){
+	var step = f.span / Math.min(f.width, f.height);
+	var x0 = f.cx - step * f.width / 2, top = f.cy + step * f.height / 2;
+	return { x0: x0, x1: x0 + step * f.width, top: top, bottom: top - step * f.height, step: step };
+}
+
+// Everything the renderer needs to draw a figure.
+var viewParams = function(f){
+	var r = region(f);
+	return {
+		type: f.type, width: f.width, height: f.height,
+		// The kernel counts rows downwards: row j is at imaginary part -(y0 + j * step).
+		x0: r.x0, x1: r.x1, y0: -r.top, y1: -r.bottom,
+		power: f.power, maxIter: f.iteration,
+		cr: f.c ? f.c[0] : 0, ci: f.c ? f.c[1] : 0,
+		colours: paletteFor(f.palette, f.type)
+	};
+}
+
+// The panel readout of a figure.
+var showView = function(f){
+	var r = region(f), id = function(name){ return byId(f.prefix + "_" + name); };
+	id("power").textContent = f.power;
+	id("real").textContent = formatRange([r.x0, r.x1]);
+	id("imag").textContent = formatRange([r.bottom, r.top]);
+	id("zoom").textContent = formatZoom(f.span);
+	id("iter").textContent = f.iteration;
+}
+
+// ---- Drawing ----
 
 var build = function(){
 	mandelbrot.paint();
@@ -7,44 +78,26 @@ var build = function(){
 }
 
 // Zoom in 5x around point p and raise the iteration limit.
-var zoom_in = function(fractal, p){
-	let half = (fractal.x[1] - fractal.x[0]) / 10;
-	fractal.x = [p[0] - half, p[0] + half];
-	fractal.y = [-p[1] - half, -p[1] + half];
-	fractal.iteration += 100;
-	fractal.paint();
+var zoom_in = function(f, p){
+	f.cx = p[0];
+	f.cy = p[1];
+	f.span /= 5;
+	f.iteration += 100;
+	f.paint();
 }
 
 // Zoom out 5x around the current centre and lower the iteration limit.
-var zoom_out = function(fractal){
-	let cx = (fractal.x[0] + fractal.x[1]) / 2;
-	let cy = (fractal.y[0] + fractal.y[1]) / 2;
-	let half_x = (fractal.x[1] - fractal.x[0]) * 2.5;
-	let half_y = (fractal.y[1] - fractal.y[0]) * 2.5;
-	fractal.x = [cx - half_x, cx + half_x];
-	fractal.y = [cy - half_y, cy + half_y];
-	fractal.iteration = Math.max(100, fractal.iteration - 100);
-	fractal.paint();
+var zoom_out = function(f){
+	f.span *= 5;
+	f.iteration = Math.max(100, f.iteration - 100);
+	f.paint();
 }
 
-var zoom_mandelbrot = function(e){
-	e.preventDefault();
-	zoom_in(mandelbrot, getPoint(e));
-}
-
-var zoom_out_mandelbrot = function(e){
-	if (e) { e.preventDefault(); }
-	zoom_out(mandelbrot);
-}
-
-var zoom_julia = function(e){
-	e.preventDefault();
-	zoom_in(julia, getPointJulia(e));
-}
-
-var zoom_out_julia = function(e){
-	if (e) { e.preventDefault(); }
-	zoom_out(julia);
+// Move the view by half its shorter side: dx, dy are -1, 0 or 1 (dy = 1 is up).
+var move = function(f, dx, dy){
+	f.cx += dx * f.span / 2;
+	f.cy += dy * f.span / 2;
+	f.paint();
 }
 
 var create_julia = function(e){
@@ -53,49 +106,76 @@ var create_julia = function(e){
 	julia.paint();
 }
 
-var canvasPoint = function(canvas, fractal, e){
-	let rect = canvas.getBoundingClientRect();
-	// Scale for the case where the canvas is displayed at a different size
-	// than its pixel resolution.
-	let px = (e.clientX - rect.left) * canvas.width / rect.width;
-	let py = (e.clientY - rect.top) * canvas.height / rect.height;
-	let x = px * (fractal.x[1] - fractal.x[0]) / canvas.width + fractal.x[0];
-	let y = -(py * (fractal.y[1] - fractal.y[0]) / canvas.height + fractal.y[0]);
-	return [x, y];
+// The point of the complex plane under the pointer.
+var canvasPoint = function(canvas, f, e){
+	var rect = canvas.getBoundingClientRect();
+	// Pointer position in canvas pixels (clientLeft/Top skip the border).
+	var inner_w = rect.width - 2 * canvas.clientLeft, inner_h = rect.height - 2 * canvas.clientTop;
+	var px = (e.clientX - rect.left - canvas.clientLeft) * canvas.width / inner_w;
+	var py = (e.clientY - rect.top - canvas.clientTop) * canvas.height / inner_h;
+	var r = region(f);
+	return [r.x0 + px * r.step, r.top - py * r.step];
 }
 
 var getPoint = function(e){
-	return canvasPoint($("#mandelbrot")[0], mandelbrot, e);
+	return canvasPoint(byId("mandelbrot"), mandelbrot, e);
 }
 
 var getPointJulia = function(e){
-	return canvasPoint($("#julia")[0], julia, e);
+	return canvasPoint(byId("julia"), julia, e);
 }
 
-var reset_fractals = function(e){
-	if (e) { e.preventDefault(); }
+// ---- Layout: the figures share all the room beside the panel ----
+
+// Pixels per CSS pixel at most: sharp on high-density screens, without
+// drawing four times as many points as needed on very dense ones.
+var DPR_MAX = 2;
+
+var layout = function(){
+	var figures = byId("figures");
+	// Side by side in a wide room, one above the other in a tall one.
+	figures.classList.toggle("stacked", figures.clientHeight > figures.clientWidth);
+	var dpr = Math.min(DPR_MAX, window.devicePixelRatio || 1);
+	[mandelbrot, julia].forEach(function(f){
+		var canvas = byId(f.type), plate = canvas.parentNode;
+		var w = plate.clientWidth, h = plate.clientHeight;
+		if (w < 3 || h < 3) { return; }
+		canvas.style.width = w + "px";
+		canvas.style.height = h + "px";
+		var pw = Math.round((w - 2) * dpr), ph = Math.round((h - 2) * dpr);   // inside the 1px border
+		if (pw !== f.width || ph !== f.height){
+			f.width = pw;
+			f.height = ph;
+			f.paint();
+		}
+	});
+}
+
+var reset_fractals = function(){
 	mandelbrot.reset();
 	julia.reset();
 }
 
-var round = function(number){
-	return Math.round(number*100)/100;
+// Keys that move a figure: [figure, dx, dy].
+var KEYS = {
+	87: [mandelbrot, 0, 1], 65: [mandelbrot, -1, 0], 83: [mandelbrot, 0, -1], 68: [mandelbrot, 1, 0],   // W A S D
+	38: [julia, 0, 1], 37: [julia, -1, 0], 40: [julia, 0, -1], 39: [julia, 1, 0]                        // arrows
 }
 
 var button_press = function(e){
-	// Don't hijack keys while the user is typing in an input field.
-	if ($(e.target).is("input, textarea, select")) { return; }
+	// Don't hijack keys while the user is typing in a field or using a control.
+	var tag = e.target.tagName;
+	if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON") { return; }
+	if (e.ctrlKey || e.metaKey || e.altKey) { return; }
 	if (e.keyCode == 32) {
 		e.preventDefault();
-		if (!e.originalEvent.repeat) { unblock_julia(); }
+		if (!e.repeat) { julia.set_blocked(!julia.blocked); }
 	}
-	else if ([87,65,83,68].includes(e.keyCode)) { e.preventDefault(); mandelbrot.move(e.keyCode); }
-	else if ([38,37,40,39].includes(e.keyCode)) { e.preventDefault(); julia.move(e.keyCode); }
-}
-
-var unblock_julia = function(e){
-	if (e) { e.preventDefault(); }
-	julia.set_blocked(!julia.blocked);
+	else if (KEYS[e.keyCode]) {
+		e.preventDefault();
+		var k = KEYS[e.keyCode];
+		move(k[0], k[1], k[2]);
+	}
 }
 
 // Read an integer from an input; returns null (and flags the field) if it is
@@ -104,45 +184,82 @@ var read_int = function(input, min, max){
 	let text = input.value.trim();
 	let value = Number(text);
 	let ok = text !== "" && Number.isInteger(value) && value >= min && value <= max;
-	$(input).toggleClass("invalid", !ok);
-	input.title = ok ? "" : "Enter a whole number from " + min + " to " + max;
+	input.classList.toggle("invalid", !ok);
+	input.title = ok ? "The exponent n in zⁿ + c" : "Enter a whole number from " + min + " to " + max;
 	return ok ? value : null;
 }
 
-var change_power = function(eventObject){
-	let value = read_int(eventObject.target, POWER_MIN, POWER_MAX);
+var change_power = function(){
+	let value = read_int(byId("power"), POWER_MIN, POWER_MAX);
 	if (value === null) { return; }
 	mandelbrot.power = value;
 	julia.power = value;
 	build();
 }
 
-var change_size_canvas = function(eventObject){
-	let value = read_int(eventObject.target, SIZE_MIN, SIZE_MAX);
-	if (value === null) { return; }
-	mandelbrot.width = value;
-	mandelbrot.height = value;
-	julia.width = value;
-	julia.height = value;
+var change_palette = function(){
+	let index = parseInt(byId("palette").value, 10);
+	mandelbrot.palette = julia.palette = index;
+	try { localStorage.setItem(PALETTE_KEY, String(index)); } catch (e) { /* not kept: fine */ }
 	build();
 }
 
-var clickEvents = function(){
-	$("#mandelbrot").on("mousemove", create_julia);
-	$("#mandelbrot").on("dblclick", zoom_mandelbrot);
-	$("#julia").on("dblclick", zoom_julia);
-	$("#reset").on("click", reset_fractals);
-	$("#reset_m").on("click", function(e){ e.preventDefault(); mandelbrot.reset(); });
-	$("#reset_j").on("click", function(e){ e.preventDefault(); julia.reset(); });
-	$("#zoom_out_m").on("click", zoom_out_mandelbrot);
-	$("#zoom_out_j").on("click", zoom_out_julia);
-	$("#blocking").on("click", unblock_julia);
-	$(document).on("keydown", button_press);
-	$("body").on("input", "#power", change_power);
-	$("body").on("input", "#size_canvas", change_size_canvas);
+var setupPalettes = function(){
+	var select = byId("palette");
+	PALETTES.forEach(function(p, i){
+		var option = document.createElement("option");
+		option.value = i;
+		option.textContent = p.name;
+		select.appendChild(option);
+	});
+	var saved = null;
+	try { saved = parseInt(localStorage.getItem(PALETTE_KEY), 10); } catch (e) { saved = null; }
+	var index = PALETTES[saved] ? saved : 0;
+	select.value = String(index);
+	mandelbrot.palette = julia.palette = index;
 }
 
-$(document).ready(function(){
+var on = function(id, type, handler){
+	byId(id).addEventListener(type, handler);
+}
+
+var setupEvents = function(){
+	on("mandelbrot", "pointermove", create_julia);
+	on("mandelbrot", "pointerdown", create_julia);
+	on("mandelbrot", "dblclick", function(e){ e.preventDefault(); zoom_in(mandelbrot, getPoint(e)); });
+	on("julia", "dblclick", function(e){ e.preventDefault(); zoom_in(julia, getPointJulia(e)); });
+	on("reset", "click", reset_fractals);
+	on("reset_m", "click", mandelbrot.reset);
+	on("reset_j", "click", julia.reset);
+	on("zoom_out_m", "click", function(){ zoom_out(mandelbrot); });
+	on("zoom_out_j", "click", function(){ zoom_out(julia); });
+	on("freeze", "change", function(){ julia.set_blocked(byId("freeze").checked); });
+	on("power", "input", change_power);
+	on("palette", "change", change_palette);
+	document.addEventListener("keydown", button_press);
+
+	// − / + buttons: step a number field by one, within its limits.
+	document.querySelectorAll("button.step").forEach(function(button){
+		button.addEventListener("click", function(){
+			var input = byId(button.getAttribute("data-target"));
+			var current = parseInt(input.value, 10);
+			if (!isFinite(current)) { current = mandelbrot.power; }
+			var next = current + parseInt(button.getAttribute("data-step"), 10);
+			input.value = Math.min(POWER_MAX, Math.max(POWER_MIN, next));
+			change_power();
+		});
+	});
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+	setupPalettes();
+	setupEvents();
+	layout();
 	build();
-	clickEvents();
+	// Redraw at the new size whenever the room for the figures changes.
+	if (window.ResizeObserver) {
+		new ResizeObserver(layout).observe(byId("figures"));
+	} else {
+		window.addEventListener("resize", layout);
+	}
 });
