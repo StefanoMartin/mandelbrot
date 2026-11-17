@@ -17,6 +17,7 @@ page works offline, also straight from disk.
 | `W` `A` `S` `D` | move Fig. 1 |
 | Arrow keys | move Fig. 2 |
 | `Space` | keeps or frees *c* |
+| `O` | shows or hides the orbit |
 
 In the panel:
 
@@ -25,6 +26,12 @@ In the panel:
   classic bands. *Classic* with bands off is the original look of the page.
 - ***c***: type a value, or pick a famous Julia set (Douady's rabbit, the
   Basilica, the Airplane, …). A typed or picked *c* is kept.
+- **Orbit**: shows the path *z* takes, step by step, from the point under the
+  pointer (or tapped). On Fig. 1 it starts at 0 with *c* the point; on Fig. 2
+  it starts at the point, with the *c* of the Julia set. A note in the corner
+  of the figure says what happens: the orbit escapes at some step, settles on
+  a fixed point or a cycle, or stays bounded. A point belongs to the set
+  exactly when its orbit never escapes.
 - **Save**: each figure as a PNG at full resolution, or a link.
 
 The address always describes the figures (power, colours, both views and *c*),
@@ -43,6 +50,7 @@ Zooming stops near ×10¹³, where double-precision numbers run out.
 | `javascript/kernel.js` | the arithmetic and the colour schemes; runs in the page and in workers |
 | `javascript/renderer.js` | draws in background workers, strip by strip, on every core |
 | `javascript/figures.js` | the two figures and the settings they share |
+| `javascript/orbit.js` | follows and draws the orbit of a point |
 | `javascript/main.js` | panel, pointer, keys, layout, links and saving |
 
 ## How the drawing is fast

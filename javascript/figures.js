@@ -71,5 +71,7 @@ julia.on_reset = function(){
   julia.c = START_C.slice();
 };
 
-mandelbrot.after_view = function(){ placeMarker(); };
-julia.after_view = function(){ showC(); placeMarker(); };
+// When a figure is redrawn, its readouts, the mark of c and the orbit follow.
+// (The orbit on Fig. 2 also depends on c.)
+mandelbrot.after_view = function(){ placeMarker(); drawOrbit(); };
+julia.after_view = function(){ showC(); placeMarker(); drawOrbit(); };

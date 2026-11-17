@@ -10,6 +10,7 @@
     <script src="javascript/kernel.js"></script>
     <script src="javascript/renderer.js"></script>
     <script src="javascript/figures.js"></script>
+    <script src="javascript/orbit.js"></script>
     <script src="javascript/main.js"></script>
   </head>
 
@@ -103,6 +104,17 @@
       </fieldset>
 
       <fieldset>
+        <legend>Orbit</legend>
+        <p><label><input type="checkbox" id="orbit"> Show the orbit of a point (key <kbd>O</kbd>)</label></p>
+        <p class="hint" id="orbit_help" hidden>
+          Point at a figure<span class="for_touch"> or tap it</span>. On Fig. 1 the orbit starts at 0,
+          with <i>c</i> the point; on Fig. 2 it starts at the point, with the <i>c</i> of the Julia set.
+          A point belongs to the set when its orbit never escapes; the note in the
+          corner of the figure says what happens to it.
+        </p>
+      </fieldset>
+
+      <fieldset>
         <legend>Save</legend>
         <p class="buttons">
           <button type="button" id="save_m" title="Save Fig. 1 as a picture">Fig. 1 as PNG</button>
@@ -124,6 +136,7 @@
           <tr><th><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></th><td>move Fig. 1</td></tr>
           <tr><th><kbd>&uarr;</kbd> <kbd>&larr;</kbd> <kbd>&darr;</kbd> <kbd>&rarr;</kbd></th><td>move Fig. 2</td></tr>
           <tr><th><kbd>Space</kbd></th><td>keeps or frees <i>c</i></td></tr>
+          <tr><th><kbd>O</kbd></th><td>shows or hides the orbit</td></tr>
           <tr><th>Fields of <i>c</i></th><td>type a value; it is kept</td></tr>
         </table>
         <p class="hint">The deeper the zoom, the more iterations are used, so the detail stays sharp.</p>
@@ -134,6 +147,8 @@
       <figure>
         <div class="plate">
           <canvas id="mandelbrot"></canvas>
+          <canvas id="mandelbrot_orbit" class="overlay"></canvas>
+          <div class="orbit_note" id="mandelbrot_note"></div>
           <!-- Where c is: a sighting mark, pale ring under dark ink so it shows on any colours. -->
           <svg id="marker" class="marker" width="25" height="25" viewBox="-12.5 -12.5 25 25" aria-hidden="true">
             <g class="halo">
@@ -147,7 +162,11 @@
         <figcaption><span class="fig">Fig. 1.</span> The Mandelbrot set.</figcaption>
       </figure>
       <figure>
-        <div class="plate"><canvas id="julia"></canvas></div>
+        <div class="plate">
+          <canvas id="julia"></canvas>
+          <canvas id="julia_orbit" class="overlay"></canvas>
+          <div class="orbit_note" id="julia_note"></div>
+        </div>
         <figcaption><span class="fig">Fig. 2.</span> The Julia set of <i>c</i> = <span id="caption_c">&minus;0.8 + 0.16<i>i</i></span>.</figcaption>
       </figure>
     </div>

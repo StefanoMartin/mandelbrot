@@ -187,7 +187,11 @@ button.zoom + button.zoom + button {
 }
 
 .c_fields .number_field {
-  width: 64px;
+  width: 74px;
+}
+
+table.c_controls th {
+  width: 62px;
 }
 
 table.c_controls {
@@ -305,6 +309,50 @@ canvas {
 canvas.grabbing,
 #mandelbrot.grabbing {
   cursor: grabbing;
+}
+
+/* The orbit is drawn on a transparent canvas over the figure, inside its border. */
+canvas.overlay {
+  top: 1px;
+  left: 1px;
+  border: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* What happens to the orbit, in the lower-left corner of the figure. */
+.orbit_note {
+  position: absolute;
+  left: 9px;
+  bottom: 9px;
+  max-width: calc(100% - 40px);
+  padding: 2px 7px;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.4;
+  color: #222;
+  background: #fbf9f3;
+  border: 1px solid #8c8676;
+  pointer-events: none;
+}
+
+.orbit_note i {
+  font-style: normal;
+}
+
+.orbit_note:empty {
+  display: none;
+}
+
+/* Hints for a touch screen only. */
+.for_touch {
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .for_touch {
+    display: inline;
+  }
 }
 
 /* The mark of c on Fig. 1, centred on its position; set from script. */

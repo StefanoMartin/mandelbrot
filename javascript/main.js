@@ -178,7 +178,7 @@ var FAMOUS = [
 // the list of famous values.
 var showC = function(){
 	var c = julia.c;
-	var decimals = decimalsFor(region(mandelbrot).step);
+	var decimals = Math.max(4, decimalsFor(region(mandelbrot).step) - 1);
 	[["c_re", c[0]], ["c_im", c[1]]].forEach(function(pair){
 		var field = byId(pair[0]);
 		if (document.activeElement !== field){
@@ -252,7 +252,10 @@ var setupDrag = function(f){
 	canvas.addEventListener("pointermove", function(e){
 		if (!drag || e.pointerId !== drag.id){
 			// Only hovering: on Fig. 1 a mouse chooses c as it goes.
-			if (f === mandelbrot && e.pointerType === "mouse" && !drag) { create_julia(e); }
+			if (e.pointerType === "mouse" && !drag){
+				if (f === mandelbrot) { create_julia(e); }
+				orbitAt(f, e);
+			}
 			return;
 		}
 		if (!drag.moved){
@@ -275,7 +278,10 @@ var setupDrag = function(f){
 	var end = function(e){
 		if (!drag || e.pointerId !== drag.id) { return; }
 		// A click (or tap) on Fig. 1 chooses c there.
-		if (!drag.moved && e.type === "pointerup" && f === mandelbrot) { create_julia(e); }
+		if (!drag.moved && e.type === "pointerup"){
+			if (f === mandelbrot) { create_julia(e); }
+			orbitAt(f, e);
+		}
 		drag = null;
 		canvas.classList.remove("grabbing");
 	};
@@ -306,8 +312,10 @@ var layout = function(){
 			f.height = ph;
 			f.paint();
 		}
+		sizeOrbitCanvas(f, w, h);
 	});
 	placeMarker();
+	drawOrbit();
 }
 
 // ---- Keys ----
@@ -323,7 +331,11 @@ var button_press = function(e){
 	var tag = e.target.tagName;
 	if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON") { return; }
 	if (e.ctrlKey || e.metaKey || e.altKey) { return; }
-	if (e.keyCode == 32) {
+	if (e.keyCode == 79) {   // O: the orbit
+		e.preventDefault();
+		if (!e.repeat) { setOrbitOn(!orbit.on); }
+	}
+	else if (e.keyCode == 32) {
 		e.preventDefault();
 		if (!e.repeat) { julia.set_blocked(!julia.blocked); placeMarker(); }
 	}
@@ -550,6 +562,13 @@ var setupEvents = function(){
 	on("zoom_out_m", "click", function(){ zoom_centre(mandelbrot, 1 / 2); });
 	on("zoom_in_j", "click", function(){ zoom_centre(julia, 2); });
 	on("zoom_out_j", "click", function(){ zoom_centre(julia, 1 / 2); });
+	on("orbit", "change", function(){ setOrbitOn(byId("orbit").checked); });
+	// A mouse leaving a figure takes its orbit away (a tapped one stays).
+	["mandelbrot", "julia"].forEach(function(id){
+		byId(id).addEventListener("pointerleave", function(e){
+			if (e.pointerType === "mouse" && orbit.f && orbit.f.type === id) { hideOrbit(); }
+		});
+	});
 	on("freeze", "change", function(){ julia.set_blocked(byId("freeze").checked); placeMarker(); });
 	on("c_re", "input", readCFields);
 	on("c_im", "input", readCFields);
