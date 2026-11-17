@@ -77,20 +77,40 @@ var build = function(){
 	julia.paint();
 }
 
-// Zoom in 5x around point p and raise the iteration limit.
-var zoom_in = function(f, p){
-	f.cx = p[0];
-	f.cy = p[1];
-	f.span /= 5;
-	f.iteration += 100;
+// Farthest out and deepest in. Below about 1e-13 the pixels would be
+// closer together than double-precision numbers can tell apart.
+var SPAN_MAX = 16, SPAN_MIN = 1e-13;
+
+// Zoom by `factor` (above 1 zooms in), keeping the point p where it is on screen.
+var zoom_at = function(f, factor, p){
+	var span = Math.min(SPAN_MAX, Math.max(SPAN_MIN, f.span / factor));
+	var k = span / f.span;
+	f.cx = p[0] - (p[0] - f.cx) * k;
+	f.cy = p[1] - (p[1] - f.cy) * k;
+	f.span = span;
+	setIterations(f);
 	f.paint();
 }
 
-// Zoom out 5x around the current centre and lower the iteration limit.
-var zoom_out = function(f){
-	f.span *= 5;
-	f.iteration = Math.max(100, f.iteration - 100);
-	f.paint();
+// Zoom around the centre of the figure (the panel buttons).
+var zoom_centre = function(f, factor){
+	zoom_at(f, factor, [f.cx, f.cy]);
+}
+
+// Deeper views need more iterations to show their detail: 100 more for every
+// 5x of zoom, as the old zoom steps did. Rounded, so the colours don't shift
+// at every turn of the wheel.
+var setIterations = function(f){
+	var zoom = 4 / f.span;
+	var it = f.base_iteration + 100 * Math.log(zoom) / Math.log(5);
+	f.iteration = Math.max(f.base_iteration, Math.round(it / 25) * 25);
+}
+
+// Mouse wheel or trackpad: zoom in or out at the pointer.
+var wheelZoom = function(f, e){
+	e.preventDefault();
+	var delta = e.deltaY * (e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 400 : 1));
+	zoom_at(f, Math.exp(-delta * 0.0015), canvasPoint(byId(f.type), f, e));
 }
 
 // Move the view by half its shorter side: dx, dy are -1, 0 or 1 (dy = 1 is up).
@@ -226,13 +246,15 @@ var on = function(id, type, handler){
 var setupEvents = function(){
 	on("mandelbrot", "pointermove", create_julia);
 	on("mandelbrot", "pointerdown", create_julia);
-	on("mandelbrot", "dblclick", function(e){ e.preventDefault(); zoom_in(mandelbrot, getPoint(e)); });
-	on("julia", "dblclick", function(e){ e.preventDefault(); zoom_in(julia, getPointJulia(e)); });
+	byId("mandelbrot").addEventListener("wheel", function(e){ wheelZoom(mandelbrot, e); }, { passive: false });
+	byId("julia").addEventListener("wheel", function(e){ wheelZoom(julia, e); }, { passive: false });
 	on("reset", "click", reset_fractals);
 	on("reset_m", "click", mandelbrot.reset);
 	on("reset_j", "click", julia.reset);
-	on("zoom_out_m", "click", function(){ zoom_out(mandelbrot); });
-	on("zoom_out_j", "click", function(){ zoom_out(julia); });
+	on("zoom_in_m", "click", function(){ zoom_centre(mandelbrot, 2); });
+	on("zoom_out_m", "click", function(){ zoom_centre(mandelbrot, 1 / 2); });
+	on("zoom_in_j", "click", function(){ zoom_centre(julia, 2); });
+	on("zoom_out_j", "click", function(){ zoom_centre(julia, 1 / 2); });
 	on("freeze", "change", function(){ julia.set_blocked(byId("freeze").checked); });
 	on("power", "input", change_power);
 	on("palette", "change", change_palette);

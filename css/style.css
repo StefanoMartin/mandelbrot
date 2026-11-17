@@ -167,6 +167,20 @@ button:active {
   margin: 10px 0 2px;
 }
 
+button.zoom {
+  min-width: 28px;
+  padding: 0 6px;
+}
+
+button.zoom + button.zoom {
+  margin-left: 2px;
+}
+
+/* Reset sits apart from the zoom buttons. */
+button.zoom + button.zoom + button {
+  margin-left: 10px;
+}
+
 .status {
   font-size: 12px;
   font-style: italic;

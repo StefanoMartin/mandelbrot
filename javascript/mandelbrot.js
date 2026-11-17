@@ -10,6 +10,7 @@ var mandelbrot = {
   cx: 0,
   cy: 0,
   span: 4,
+  base_iteration: 200,   // iterations at zoom 1 (see setIterations)
   iteration: 200,
   // Request a redraw; calls within one animation frame are merged.
   paint: function(){

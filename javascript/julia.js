@@ -11,6 +11,7 @@ var julia = {
   span: 4,
   c: [-0.8, 0.156],
   blocked: false,
+  base_iteration: 100,   // iterations at zoom 1 (see setIterations)
   iteration: 100,
   // Request a redraw; calls within one animation frame are merged.
   paint: function(){

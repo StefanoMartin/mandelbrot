@@ -56,7 +56,8 @@
         </table>
         <p class="status" id="m_status">Drawing&hellip;</p>
         <p class="buttons">
-          <button type="button" id="zoom_out_m">Zoom out</button>
+          Zoom <button type="button" class="zoom" id="zoom_out_m" title="Zoom out">&minus;</button><button
+            type="button" class="zoom" id="zoom_in_m" title="Zoom in">+</button>
           <button type="button" id="reset_m">Reset</button>
         </p>
       </fieldset>
@@ -74,7 +75,8 @@
         <p class="status" id="j_status">Drawing&hellip;</p>
         <p><label><input type="checkbox" id="freeze"> Keep this <i>c</i> (key <kbd>Space</kbd>)</label></p>
         <p class="buttons">
-          <button type="button" id="zoom_out_j">Zoom out</button>
+          Zoom <button type="button" class="zoom" id="zoom_out_j" title="Zoom out">&minus;</button><button
+            type="button" class="zoom" id="zoom_in_j" title="Zoom in">+</button>
           <button type="button" id="reset_j">Reset</button>
         </p>
       </fieldset>
@@ -83,12 +85,12 @@
         <legend>How to use</legend>
         <table class="keys">
           <tr><th>Pointer on Fig. 1</th><td>chooses <i>c</i></td></tr>
-          <tr><th>Double-click</th><td>zooms in on that point</td></tr>
+          <tr><th>Mouse wheel</th><td>zooms in or out at the pointer</td></tr>
           <tr><th><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></th><td>move Fig. 1</td></tr>
           <tr><th><kbd>&uarr;</kbd> <kbd>&larr;</kbd> <kbd>&darr;</kbd> <kbd>&rarr;</kbd></th><td>move Fig. 2</td></tr>
           <tr><th><kbd>Space</kbd></th><td>keeps or frees <i>c</i></td></tr>
         </table>
-        <p class="hint">Each zoom adds detail: the number of iterations grows with it.</p>
+        <p class="hint">The deeper the zoom, the more iterations are used, so the detail stays sharp.</p>
       </fieldset>
     </div>
 
