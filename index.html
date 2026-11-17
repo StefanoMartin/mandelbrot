@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
   <head>
     <!-- Required meta tags -->
@@ -19,7 +20,7 @@
     <script src="javascript/julia.js"></script>
     <script src="javascript/main.js"></script>
     <link rel="stylesheet" href="css/wrapper.css"/>
-    <link rel="stylesheet" href="css/button.css"></script>
+    <link rel="stylesheet" href="css/button.css">
   </head>
 
   <body>
@@ -32,14 +33,14 @@
         <div class="row">
           <div class="col-5 offset-1 cta">Power</div>
           <div class="col-5 cta">
-            <input class="number_slide" id="power" type="number" value="2">
+            <input class="number_slide" id="power" type="number" value="2" min="1" max="10" step="1">
           </div>
         </div>
 
         <div class="row">
           <div class="col-5 offset-1 cta">Size canvas</div>
           <div class="col-5 cta">
-            <input class="number_slide" id="size_canvas" type="number" value="400">
+            <input class="number_slide" id="size_canvas" type="number" value="400" min="50" max="1500" step="10">
           </div>
         </div>
       </div>
@@ -77,13 +78,13 @@
           <div class="col-12 cta"><h4>Julia set</h4></div>
         </div>
         <div class="row">
-          <div class="col-12 cta">x^<span id=p_j_1>2</span> + (<span id=p_j_2>-1.5</span>) + i(<span id=p_j_3>1.5</span>)</div>
+          <div class="col-12 cta">x^<span id=p_j_1>2</span> + (<span id=p_j_2>-2</span>) + i(<span id=p_j_3>2</span>)</div>
         </div>
         <div class="row">
           <div class="col-12 cta"><span id=p_j_4>[-2,2]</span> &times; <span id=p_j_5>[-2,2]</span></div>
         </div>
         <div class="row">
-          <div class="col-12 cta">Iterations: <span id=p_j_6>200</span></div>
+          <div class="col-12 cta">Iterations: <span id=p_j_6>100</span></div>
         </div>
         <div class="row">
           <div class="col-12 cta"><span id=loading_j></span></div>
@@ -102,11 +103,11 @@
         <h4>Instruction</h4>
         <p>
           Move the mouse on the Mandelbrot set
-          to change the Julia set</br>
-          Double click to zoom</br>
-          Space to block/unblock the Julia set</br>
-          Use WASD to move inside Mandelbrot set</br>
-          Use directional keys to move inside Julia set</br>
+          to change the Julia set<br>
+          Double click to zoom<br>
+          Space to block/unblock the Julia set<br>
+          Use WASD to move inside Mandelbrot set<br>
+          Use directional keys to move inside Julia set<br>
         </p>
       </div>
     </div>

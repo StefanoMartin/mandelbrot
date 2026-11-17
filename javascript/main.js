@@ -1,87 +1,79 @@
+var POWER_MIN = 1, POWER_MAX = 10;
+var SIZE_MIN = 50, SIZE_MAX = 1500;
+
 var build = function(){
 	mandelbrot.paint();
 	julia.paint();
 }
 
-var zoom_mandelbrot = function(e){
-	e.preventDefault();
-	x = getPoint(e);
-	distance = (mandelbrot.x[1]-mandelbrot.x[0])/10
-	mandelbrot.x = [x[0]-distance, x[0]+distance]
-	mandelbrot.y = [-x[1]-distance, -x[1]+distance]
-	mandelbrot.iteration += 100;
-	mandelbrot.paint();
+// Zoom in 5x around point p and raise the iteration limit.
+var zoom_in = function(fractal, p){
+	let half = (fractal.x[1] - fractal.x[0]) / 10;
+	fractal.x = [p[0] - half, p[0] + half];
+	fractal.y = [-p[1] - half, -p[1] + half];
+	fractal.iteration += 100;
+	fractal.paint();
 }
 
-var zoom_out_mandelbrot = function(){
-	distance = mandelbrot.x[1]-mandelbrot.x[0]
-	new_distance = distance*2.5
-	center_point = mandelbrot.x[0] + distance/2;
-	mandelbrot.x = [center_point-new_distance, center_point+new_distance]
-	center_point = mandelbrot.y[0] + distance/2;
-	mandelbrot.y = [center_point-new_distance, center_point+new_distance]
-	mandelbrot.iteration -= 100;
-	if(mandelbrot.iteration < 100){mandelbrot.iteration = 100}
-	mandelbrot.paint();
+// Zoom out 5x around the current centre and lower the iteration limit.
+var zoom_out = function(fractal){
+	let cx = (fractal.x[0] + fractal.x[1]) / 2;
+	let cy = (fractal.y[0] + fractal.y[1]) / 2;
+	let half_x = (fractal.x[1] - fractal.x[0]) * 2.5;
+	let half_y = (fractal.y[1] - fractal.y[0]) * 2.5;
+	fractal.x = [cx - half_x, cx + half_x];
+	fractal.y = [cy - half_y, cy + half_y];
+	fractal.iteration = Math.max(100, fractal.iteration - 100);
+	fractal.paint();
+}
+
+var zoom_mandelbrot = function(e){
+	e.preventDefault();
+	zoom_in(mandelbrot, getPoint(e));
+}
+
+var zoom_out_mandelbrot = function(e){
+	if (e) { e.preventDefault(); }
+	zoom_out(mandelbrot);
 }
 
 var zoom_julia = function(e){
 	e.preventDefault();
-	x = getPointJulia(e);
-	distance = (julia.x[1]-julia.x[0])/10
-	julia.x = [x[0]-distance, x[0]+distance]
-	julia.y = [-x[1]-distance, -x[1]+distance]
-	julia.iteration += 100;
-	julia.paint();
+	zoom_in(julia, getPointJulia(e));
 }
 
-var zoom_out_julia = function(){
-	distance = julia.x[1]-julia.x[0]
-	new_distance = distance*2.5
-	center_point = julia.x[0] + distance/2;
-	julia.x = [center_point-new_distance, center_point+new_distance]
-	center_point = julia.y[0] + distance/2;
-	julia.y = [center_point-new_distance, center_point+new_distance]
-	julia.iteration -= 100;
-	if(julia.iteration < 100){julia.iteration = 100}
-	julia.paint();
+var zoom_out_julia = function(e){
+	if (e) { e.preventDefault(); }
+	zoom_out(julia);
 }
 
 var create_julia = function(e){
-	if(julia.blocked){ return; }
-	x = getPoint(e);
-	$("#p_j_2")[0].innerHTML = round(x[0]);
-	$("#p_j_3")[0].innerHTML = round(x[1]);
-	julia.c = x;
+	if (julia.blocked) { return; }
+	julia.c = getPoint(e);
 	julia.paint();
 }
 
-var select_point = function(e){
-	x = getPoint(e);
-  console.log(x[0] + "+i(" + x[1] + ")");
+var canvasPoint = function(canvas, fractal, e){
+	let rect = canvas.getBoundingClientRect();
+	// Scale for the case where the canvas is displayed at a different size
+	// than its pixel resolution.
+	let px = (e.clientX - rect.left) * canvas.width / rect.width;
+	let py = (e.clientY - rect.top) * canvas.height / rect.height;
+	let x = px * (fractal.x[1] - fractal.x[0]) / canvas.width + fractal.x[0];
+	let y = -(py * (fractal.y[1] - fractal.y[0]) / canvas.height + fractal.y[0]);
+	return [x, y];
 }
 
 var getPoint = function(e){
-	var canvas = $("#mandelbrot")[0]
-	let rect = canvas.getBoundingClientRect();
-  	let x = e.clientX - rect.left;
-  	let y = e.clientY - rect.top;
-	x = x*(mandelbrot.x[1]-mandelbrot.x[0])/canvas.width+mandelbrot.x[0]
-	y = -(y*(mandelbrot.y[1]-mandelbrot.y[0])/canvas.height+mandelbrot.y[0])
-	return [x,y];
+	return canvasPoint($("#mandelbrot")[0], mandelbrot, e);
 }
 
 var getPointJulia = function(e){
-	var canvas = $("#julia")[0]
-	let rect = canvas.getBoundingClientRect();
-  	let x = e.clientX - rect.left;
-  	let y = e.clientY - rect.top;
-	x = x*(julia.x[1]-julia.x[0])/canvas.width+julia.x[0]
-	y = -(y*(julia.y[1]-julia.y[0])/canvas.height+julia.y[0])
-	return [x,y];
+	return canvasPoint($("#julia")[0], julia, e);
 }
 
-var reset_fractals = function(){
+var reset_fractals = function(e){
+	if (e) { e.preventDefault(); }
 	mandelbrot.reset();
 	julia.reset();
 }
@@ -91,33 +83,43 @@ var round = function(number){
 }
 
 var button_press = function(e){
-	e.preventDefault();
-	if(e.keyCode == 32){ unblock_julia(); }
-	else if([87,65,83,68].includes(e.keyCode)){ mandelbrot.move(e.keyCode); }
-	else if([38,37,40,39].includes(e.keyCode)){ julia.move(e.keyCode); }
+	// Don't hijack keys while the user is typing in an input field.
+	if ($(e.target).is("input, textarea, select")) { return; }
+	if (e.keyCode == 32) {
+		e.preventDefault();
+		if (!e.originalEvent.repeat) { unblock_julia(); }
+	}
+	else if ([87,65,83,68].includes(e.keyCode)) { e.preventDefault(); mandelbrot.move(e.keyCode); }
+	else if ([38,37,40,39].includes(e.keyCode)) { e.preventDefault(); julia.move(e.keyCode); }
 }
 
-var unblock_julia = function(){
-	if(julia.blocked){
-		$("#blocking")[0].innerHTML = "Unblocked";
-		julia.blocked = false;
-	}else{
-		$("#blocking")[0].innerHTML = "Blocked";
-		julia.blocked = true;
-	}
+var unblock_julia = function(e){
+	if (e) { e.preventDefault(); }
+	julia.set_blocked(!julia.blocked);
+}
+
+// Read an integer from an input; returns null (and flags the field) if it is
+// not a whole number inside [min, max].
+var read_int = function(input, min, max){
+	let text = input.value.trim();
+	let value = Number(text);
+	let ok = text !== "" && Number.isInteger(value) && value >= min && value <= max;
+	$(input).toggleClass("invalid", !ok);
+	input.title = ok ? "" : "Enter a whole number from " + min + " to " + max;
+	return ok ? value : null;
 }
 
 var change_power = function(eventObject){
-	value = eventObject.target.value;
+	let value = read_int(eventObject.target, POWER_MIN, POWER_MAX);
+	if (value === null) { return; }
 	mandelbrot.power = value;
 	julia.power = value;
-	$("#p_j_1")[0].innerHTML = value;
-	$("#p_m_1")[0].innerHTML = value;
 	build();
 }
 
 var change_size_canvas = function(eventObject){
-	value = eventObject.target.value;
+	let value = read_int(eventObject.target, SIZE_MIN, SIZE_MAX);
+	if (value === null) { return; }
 	mandelbrot.width = value;
 	mandelbrot.height = value;
 	julia.width = value;
@@ -130,18 +132,17 @@ var clickEvents = function(){
 	$("#mandelbrot").on("dblclick", zoom_mandelbrot);
 	$("#julia").on("dblclick", zoom_julia);
 	$("#reset").on("click", reset_fractals);
-	$("#reset_m").on("click", mandelbrot.reset);
-	$("#reset_j").on("click", julia.reset);
+	$("#reset_m").on("click", function(e){ e.preventDefault(); mandelbrot.reset(); });
+	$("#reset_j").on("click", function(e){ e.preventDefault(); julia.reset(); });
 	$("#zoom_out_m").on("click", zoom_out_mandelbrot);
 	$("#zoom_out_j").on("click", zoom_out_julia);
 	$("#blocking").on("click", unblock_julia);
-	$("body").on("keyup", button_press);
+	$(document).on("keydown", button_press);
 	$("body").on("input", "#power", change_power);
 	$("body").on("input", "#size_canvas", change_size_canvas);
 }
 
 $(document).ready(function(){
-		build();
-		clickEvents();
-	}
-);
+	build();
+	clickEvents();
+});
