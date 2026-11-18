@@ -26,64 +26,67 @@
 
       <fieldset>
         <legend>Settings</legend>
-        <table class="controls">
-          <tr>
-            <th>Formula</th>
-            <td><select id="formula" title="The rule z &rarr; f(z, c) that both figures follow"></select></td>
-          </tr>
-          <tr id="row_expr" hidden>
-            <th><i>f</i>(<i>z</i>, <i>c</i>)</th>
-            <td><input class="text_field" type="text" id="custom_expr" spellcheck="false" autocomplete="off"
-              autocapitalize="off" title="Your formula, for example z^3 + z^2 + c"></td>
-          </tr>
-          <tr id="row_start" hidden>
-            <th>Start <i>z</i></th>
-            <td><input class="text_field" type="text" id="custom_start" spellcheck="false" autocomplete="off"
-              autocapitalize="off" title="Where z starts on Fig. 1, for example 0 or pi/2"></td>
-          </tr>
-          <tr id="row_p" hidden>
-            <th><i>p</i></th>
-            <td class="c_fields">
-              <input class="number_field" type="number" id="p_re" step="0.01" title="Real part of p"> + <input
-                class="number_field" type="number" id="p_im" step="0.01" title="Imaginary part of p"> <i>i</i>
-            </td>
-          </tr>
-          <tr>
-            <th>Power</th>
-            <td>
-              <div class="step_box">
-                <input class="number_field" type="number" id="power" value="2" min="1" max="10" step="1"
-                  title="The exponent n in z&#8319; + c"><button type="button" class="step" data-target="power"
-                  data-step="-1" title="Lower the power">&minus;</button><button type="button" class="step"
-                  data-target="power" data-step="1" title="Raise the power">+</button>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <th>Show</th>
-            <td>
-              <select id="show" title="Show both figures, or one of them using all the room">
-                <option value="both">Both figures</option>
-                <option value="mandelbrot">Fig. 1 only</option>
-                <option value="julia">Fig. 2 only</option>
-              </select>
-            </td>
-          </tr>
-          <tr>
-            <th>Colours</th>
-            <td><select id="palette" title="Inks and paper"></select></td>
-          </tr>
-          <tr>
-            <th>Shading</th>
-            <td>
-              <select id="shading" title="How the outside of the set is coloured">
-                <option value="smooth">Smooth</option>
-                <option value="bands">Bands</option>
-                <option value="lines">Ink lines</option>
-              </select>
-            </td>
-          </tr>
-        </table>
+        <div class="row">
+          <label class="label" for="formula">Formula</label>
+          <div class="control">
+            <select id="formula" title="The rule z &rarr; f(z, c) that both figures follow"></select>
+          </div>
+        </div>
+        <div class="row" id="row_expr" hidden>
+          <label class="label" for="custom_expr"><i>f</i>(<i>z</i>, <i>c</i>)</label>
+          <div class="control">
+            <input type="text" id="custom_expr" spellcheck="false" autocomplete="off" autocapitalize="off"
+              title="Your formula, for example z^3 + z^2 + c">
+          </div>
+        </div>
+        <div class="row" id="row_start" hidden>
+          <label class="label" for="custom_start">Start <i>z</i></label>
+          <div class="control">
+            <input type="text" id="custom_start" spellcheck="false" autocomplete="off" autocapitalize="off"
+              title="Where z starts on Fig. 1, for example 0 or pi/2">
+          </div>
+        </div>
+        <div class="row" id="row_p" hidden>
+          <label class="label" for="p_re"><i>p</i></label>
+          <div class="control">
+            <input type="text" inputmode="decimal" id="p_re" title="Real part of p">
+            <span class="joint">+</span>
+            <input type="text" inputmode="decimal" id="p_im" title="Imaginary part of p">
+            <span class="joint"><i>i</i></span>
+          </div>
+        </div>
+        <div class="row">
+          <label class="label" for="power">Power</label>
+          <div class="control">
+            <input type="number" id="power" value="2" min="1" max="10" step="1" title="The exponent n in z&#8319; + c">
+            <button type="button" class="small step" data-target="power" data-step="-1" title="Lower the power">&minus;</button>
+            <button type="button" class="small step" data-target="power" data-step="1" title="Raise the power">+</button>
+          </div>
+        </div>
+        <div class="row">
+          <label class="label" for="show">Show</label>
+          <div class="control">
+            <select id="show" title="Show both figures, or one of them using all the room">
+              <option value="both">Both figures</option>
+              <option value="mandelbrot">Fig. 1 only</option>
+              <option value="julia">Fig. 2 only</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <label class="label" for="palette">Colours</label>
+          <div class="control"><select id="palette" title="Inks and paper"></select></div>
+        </div>
+        <div class="row">
+          <label class="label" for="shading">Shading</label>
+          <div class="control">
+            <select id="shading" title="How the outside of the set is coloured">
+              <option value="smooth">Smooth</option>
+              <option value="bands">Bands</option>
+              <option value="lines">Ink lines</option>
+            </select>
+          </div>
+        </div>
         <p class="formula_error" id="formula_error"></p>
         <p class="hint" id="custom_help" hidden>
           Use <i>z</i>, <i>c</i>, <i>i</i>, pi, e, <i>n</i> (the power), + &minus; * / ^ and
@@ -91,65 +94,71 @@
           Start <i>z</i> at a point where the derivative of <i>f</i> is 0, so that
           the two figures belong together.
         </p>
-        <p class="buttons"><button type="button" id="reset">Reset both figures</button></p>
+        <div class="row">
+          <span class="label"></span>
+          <div class="control"><button type="button" id="reset">Reset both figures</button></div>
+        </div>
       </fieldset>
 
       <fieldset id="m_panel">
         <legend>Fig. 1 &middot; <span id="m_legend">Mandelbrot set</span></legend>
-        <table class="controls readout">
-          <tr><th>Formula</th><td id="m_formula"><i>z</i><sup>2</sup> + <i>c</i>, from <i>z</i> = 0</td></tr>
-          <tr><th>Real</th><td id="m_real">[&minus;2, 2]</td></tr>
-          <tr><th>Imaginary</th><td id="m_imag">[&minus;2, 2]</td></tr>
-          <tr><th>Zoom</th><td id="m_zoom">&times;1</td></tr>
-          <tr><th>Iterations</th><td id="m_iter">200</td></tr>
-        </table>
-        <p class="status" id="m_status">Drawing&hellip;</p>
-        <p class="buttons">
-          Zoom <button type="button" class="zoom" id="zoom_out_m" title="Zoom out">&minus;</button><button
-            type="button" class="zoom" id="zoom_in_m" title="Zoom in">+</button>
-          <button type="button" id="reset_m">Reset</button>
-        </p>
+        <div class="row"><span class="label">Formula</span><span class="value formula" id="m_formula"><i>z</i><sup>2</sup> + <i>c</i>, from <i>z</i> = 0</span></div>
+        <div class="row"><span class="label">Real</span><span class="value" id="m_real">[&minus;2, 2]</span></div>
+        <div class="row"><span class="label">Imaginary</span><span class="value" id="m_imag">[&minus;2, 2]</span></div>
+        <div class="row"><span class="label">Zoom</span><span class="value" id="m_zoom">&times;1</span></div>
+        <div class="row"><span class="label">Iterations</span><span class="value" id="m_iter">200</span></div>
+        <div class="row"><span class="label"></span><span class="status" id="m_status">Drawing&hellip;</span></div>
+        <div class="row">
+          <span class="label">View</span>
+          <div class="control">
+            <button type="button" class="small" id="zoom_out_m" title="Zoom out">&minus;</button>
+            <button type="button" class="small" id="zoom_in_m" title="Zoom in">+</button>
+            <button type="button" class="push" id="reset_m" title="Back to the starting view">Reset</button>
+          </div>
+        </div>
       </fieldset>
 
       <fieldset id="j_panel">
         <legend>Fig. 2 &middot; Julia set</legend>
-        <table class="controls readout">
-          <tr><th>Formula</th><td id="j_formula"><i>z</i><sup>2</sup> + <i>c</i></td></tr>
-          <tr><th>Real</th><td id="j_real">[&minus;2, 2]</td></tr>
-          <tr><th>Imaginary</th><td id="j_imag">[&minus;2, 2]</td></tr>
-          <tr><th>Zoom</th><td id="j_zoom">&times;1</td></tr>
-          <tr><th>Iterations</th><td id="j_iter">100</td></tr>
-        </table>
-        <p class="status" id="j_status">Drawing&hellip;</p>
-        <table class="controls c_controls">
-          <tr>
-            <th><i>c</i></th>
-            <td class="c_fields">
-              <input class="number_field" type="number" id="c_re" step="0.01" value="-0.8"
-                title="Real part of c"> + <input class="number_field" type="number" id="c_im"
-                step="0.01" value="0.156" title="Imaginary part of c"> <i>i</i>
-            </td>
-          </tr>
-          <tr>
-            <th>Famous</th>
-            <td>
-              <select id="famous" title="Well-known Julia sets of z&sup2; + c">
-                <option value="">Choose one&hellip;</option>
-              </select>
-            </td>
-          </tr>
-        </table>
-        <p><label><input type="checkbox" id="freeze"> Keep this <i>c</i> (key <kbd>K</kbd>)</label></p>
-        <p class="buttons">
-          Zoom <button type="button" class="zoom" id="zoom_out_j" title="Zoom out">&minus;</button><button
-            type="button" class="zoom" id="zoom_in_j" title="Zoom in">+</button>
-          <button type="button" id="reset_j">Reset</button>
-        </p>
+        <div class="row"><span class="label">Formula</span><span class="value formula" id="j_formula"><i>z</i><sup>2</sup> + <i>c</i></span></div>
+        <div class="row"><span class="label">Real</span><span class="value" id="j_real">[&minus;2, 2]</span></div>
+        <div class="row"><span class="label">Imaginary</span><span class="value" id="j_imag">[&minus;2, 2]</span></div>
+        <div class="row"><span class="label">Zoom</span><span class="value" id="j_zoom">&times;1</span></div>
+        <div class="row"><span class="label">Iterations</span><span class="value" id="j_iter">100</span></div>
+        <div class="row"><span class="label"></span><span class="status" id="j_status">Drawing&hellip;</span></div>
+        <div class="row">
+          <label class="label" for="c_re"><i>c</i></label>
+          <div class="control">
+            <input type="text" inputmode="decimal" id="c_re" value="-0.8" title="Real part of c">
+            <span class="joint">+</span>
+            <input type="text" inputmode="decimal" id="c_im" value="0.156" title="Imaginary part of c">
+            <span class="joint"><i>i</i></span>
+          </div>
+        </div>
+        <div class="row">
+          <label class="label" for="famous">Famous</label>
+          <div class="control">
+            <select id="famous" title="Well-known Julia sets of z&sup2; + c">
+              <option value="">Choose one&hellip;</option>
+            </select>
+          </div>
+        </div>
+        <label class="check"><input type="checkbox" id="freeze"><span>Keep this <i>c</i>
+          <span class="nowrap">(key <kbd>K</kbd>)</span></span></label>
+        <div class="row">
+          <span class="label">View</span>
+          <div class="control">
+            <button type="button" class="small" id="zoom_out_j" title="Zoom out">&minus;</button>
+            <button type="button" class="small" id="zoom_in_j" title="Zoom in">+</button>
+            <button type="button" class="push" id="reset_j" title="Back to the starting view">Reset</button>
+          </div>
+        </div>
       </fieldset>
 
       <fieldset>
         <legend>Orbit</legend>
-        <p><label><input type="checkbox" id="orbit"> Show the orbit of a point (key <kbd>O</kbd>)</label></p>
+        <label class="check"><input type="checkbox" id="orbit"><span>Show the orbit of a point
+          <span class="nowrap">(key <kbd>O</kbd>)</span></span></label>
         <p class="hint" id="orbit_help" hidden>
           Point at a figure<span class="for_touch"> or tap it</span>. On Fig. 1 the orbit starts at 0,
           with <i>c</i> the point; on Fig. 2 it starts at the point, with the <i>c</i> of the Julia set.
@@ -159,63 +168,77 @@
       </fieldset>
 
       <fieldset>
-        <legend>Places and pictures</legend>
-        <p class="save_label">Places</p>
-        <p class="preset">
-          <select id="places" title="Go to a place worth seeing, or to one of your favourites">
-            <option value="">Go to a place&hellip;</option>
-          </select><button type="button" id="deleteFavourite" title="Delete this favourite" hidden>Delete</button>
-        </p>
-        <p class="favourite_save">
-          <input type="text" id="favourite_name" placeholder="Name" maxlength="40"
-            title="A name for what the figures show now"><button type="button" id="saveFavourite"
-            title="Keep what the figures show now among your favourites">Save</button>
-        </p>
+        <legend>Places</legend>
+        <div class="row">
+          <label class="label" for="places">Go to</label>
+          <div class="control">
+            <select id="places" title="Go to a place worth seeing, or to one of your favourites">
+              <option value="">Choose a place&hellip;</option>
+            </select>
+            <button type="button" id="deleteFavourite" title="Delete this favourite" hidden>Delete</button>
+          </div>
+        </div>
+        <div class="row">
+          <label class="label" for="favourite_name">Keep as</label>
+          <div class="control">
+            <input type="text" id="favourite_name" placeholder="Name" maxlength="40"
+              title="A name for what the figures show now">
+            <button type="button" id="saveFavourite" title="Keep what the figures show now among your favourites">Save</button>
+          </div>
+        </div>
+        <div class="row">
+          <span class="label">File</span>
+          <div class="control buttons">
+            <button type="button" id="favouritesToFile" title="Save all favourites as one file">Save</button>
+            <button type="button" id="favouritesFromFile" title="Add the favourites of a file to this list">Load</button>
+            <input type="file" id="favourites_file" accept=".json,application/json" hidden>
+          </div>
+        </div>
         <p id="favourites_note" class="hint"></p>
-        <p class="buttons">
-          <button type="button" id="favouritesToFile" title="Save all favourites as one file">Save to file</button>
-          <button type="button" id="favouritesFromFile" title="Add the favourites of a file to this list">Load from file</button>
-          <input type="file" id="favourites_file" accept=".json,application/json" hidden>
-        </p>
+      </fieldset>
 
-        <p class="save_label">Pictures</p>
-        <table class="controls">
-          <tr>
-            <th>Size</th>
-            <td>
-              <select id="picture_size" title="Size of the saved picture">
-                <option value="1">As on the screen</option>
-                <option value="2">Twice as large</option>
-                <option value="4">Four times as large</option>
-              </select>
-            </td>
-          </tr>
-        </table>
-        <p class="buttons">
-          <button type="button" id="save_m" title="Save Fig. 1 as a picture">Fig. 1 as PNG</button>
-          <button type="button" id="save_j" title="Save Fig. 2 as a picture">Fig. 2 as PNG</button>
-        </p>
-        <p class="buttons">
-          <button type="button" id="copy_link" title="Copy a link that opens these figures">Copy link</button>
-        </p>
+      <fieldset>
+        <legend>Pictures</legend>
+        <div class="row">
+          <label class="label" for="picture_size">Size</label>
+          <div class="control">
+            <select id="picture_size" title="Size of the saved picture">
+              <option value="1">As on the screen</option>
+              <option value="2">Twice as large</option>
+              <option value="4">Four times as large</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <span class="label">PNG</span>
+          <div class="control buttons">
+            <button type="button" id="save_m" title="Save Fig. 1 as a picture">Fig. 1</button>
+            <button type="button" id="save_j" title="Save Fig. 2 as a picture">Fig. 2</button>
+          </div>
+        </div>
+        <div class="row">
+          <span class="label">Link</span>
+          <div class="control buttons">
+            <button type="button" id="copy_link" title="Copy a link that opens these figures">Copy link</button>
+          </div>
+        </div>
         <p class="hint" id="save_note"></p>
         <p class="hint">The address always describes the figures: bookmark it, or share it.
           Back and Forward in the browser go through the views you explored.</p>
       </fieldset>
 
-      <fieldset>
+      <fieldset class="keys">
         <legend>How to use</legend>
-        <table class="keys">
-          <tr><th>Pointer on Fig. 1</th><td>chooses <i>c</i> (or click)</td></tr>
-          <tr><th>Drag</th><td>moves a figure</td></tr>
-          <tr><th>Mouse wheel</th><td>zooms in or out at the pointer</td></tr>
-          <tr><th><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></th><td>move Fig. 1</td></tr>
-          <tr><th><kbd>&uarr;</kbd> <kbd>&larr;</kbd> <kbd>&darr;</kbd> <kbd>&rarr;</kbd></th><td>move Fig. 2</td></tr>
-          <tr><th><kbd>K</kbd></th><td>keeps or frees <i>c</i></td></tr>
-          <tr><th><kbd>O</kbd></th><td>shows or hides the orbit</td></tr>
-          <tr><th>Fields of <i>c</i></th><td>type a value; it is kept</td></tr>
-        </table>
-        <p class="hint">The deeper the zoom, the more iterations are used, so the detail stays sharp.</p>
+        <div class="row"><span class="label">Pointer</span><span class="value">on Fig. 1 chooses <i>c</i></span></div>
+        <div class="row"><span class="label">Click</span><span class="value">on Fig. 1 chooses <i>c</i> too</span></div>
+        <div class="row"><span class="label">Drag</span><span class="value">moves a figure</span></div>
+        <div class="row"><span class="label">Wheel</span><span class="value">zooms in or out at the pointer</span></div>
+        <div class="row"><span class="label"><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></span><span class="value">move Fig. 1</span></div>
+        <div class="row"><span class="label"><kbd>&uarr;</kbd> <kbd>&larr;</kbd> <kbd>&darr;</kbd> <kbd>&rarr;</kbd></span><span class="value">move Fig. 2</span></div>
+        <div class="row"><span class="label"><kbd>K</kbd></span><span class="value">keeps or frees <i>c</i></span></div>
+        <div class="row"><span class="label"><kbd>O</kbd></span><span class="value">shows or hides the orbit</span></div>
+        <p class="hint">A typed <i>c</i> is kept. The deeper the zoom, the more iterations
+          are used, so the detail stays sharp.</p>
       </fieldset>
     </div>
 

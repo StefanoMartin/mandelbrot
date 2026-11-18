@@ -44,6 +44,12 @@ var decimalsFor = function(step){
 	return Math.min(17, Math.max(4, Math.ceil(-Math.log10(step)) + 2));
 }
 
+// A number typed in a field: "-0.8", "−0.8" or "-0,8"; NaN if it is not one.
+var parseDecimal = function(text){
+	var t = String(text).trim().replace(/\u2212/g, "-").replace(",", ".");
+	return t === "" ? NaN : Number(t);
+}
+
 // A number as plain text for a field or a link: "-0.8", not "−0.80000".
 var plain = function(v, decimals){
 	var r = parseFloat(v.toFixed(decimals));
@@ -215,7 +221,7 @@ var showC = function(){
 
 var readCFields = function(){
 	var re = byId("c_re"), im = byId("c_im");
-	var a = parseFloat(re.value), b = parseFloat(im.value);
+	var a = parseDecimal(re.value), b = parseDecimal(im.value);
 	re.classList.toggle("invalid", !isFinite(a));
 	im.classList.toggle("invalid", !isFinite(b));
 	if (isFinite(a) && isFinite(b)) { setC([a, b]); }
@@ -381,10 +387,24 @@ var KEYS = {
 	38: [julia, 0, 1], 37: [julia, -1, 0], 40: [julia, 0, -1], 39: [julia, 1, 0]                        // arrows
 }
 
+// Does a key pressed in this element belong to it rather than to the shortcuts?
+// Every key does in a field where text is typed; the arrow keys do in a list
+// (they choose an entry) and in a number field (they step it). Elsewhere, a
+// list or a checkbox just chosen keeps the focus, and the shortcuts still work.
+var keyBelongsTo = function(el, e){
+	var tag = el.tagName;
+	if (tag === "TEXTAREA" || el.isContentEditable) { return true; }
+	if (tag === "INPUT"){
+		var type = (el.type || "text").toLowerCase();
+		if (type === "number") { return e.keyCode >= 37 && e.keyCode <= 40; }
+		return ["checkbox", "radio", "button", "submit", "reset", "range", "color", "file"].indexOf(type) < 0;
+	}
+	if (tag === "SELECT") { return e.keyCode >= 37 && e.keyCode <= 40; }
+	return false;
+}
+
 var button_press = function(e){
-	// Don't hijack keys while the user is typing in a field or using a control.
-	var tag = e.target.tagName;
-	if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON") { return; }
+	if (keyBelongsTo(e.target, e)) { return; }
 	if (e.ctrlKey || e.metaKey || e.altKey) { return; }
 	if (e.keyCode == 79) {   // O: the orbit
 		e.preventDefault();
@@ -442,7 +462,7 @@ var change_formula = function(){
 // The p of the Phoenix formula.
 var change_p = function(){
 	var re = byId("p_re"), im = byId("p_im");
-	var a = parseFloat(re.value), b = parseFloat(im.value);
+	var a = parseDecimal(re.value), b = parseDecimal(im.value);
 	re.classList.toggle("invalid", !isFinite(a));
 	im.classList.toggle("invalid", !isFinite(b));
 	if (isFinite(a) && isFinite(b)){
@@ -786,7 +806,7 @@ var renderPlaces = function(message){
 	select.innerHTML = "";
 	var title = document.createElement("option");
 	title.value = "";
-	title.textContent = "Go to a place\u2026";
+	title.textContent = "Choose a place\u2026";
 	select.appendChild(title);
 	var group = function(label, items, prefix){
 		var g = document.createElement("optgroup");
