@@ -32,6 +32,14 @@
             <select id="formula" title="The rule z &rarr; f(z, c) that both figures follow"></select>
           </div>
         </div>
+        <div class="row" id="row_examples" hidden>
+          <label class="label" for="examples">Examples</label>
+          <div class="control">
+            <select id="examples" title="Start from a formula that gives a good picture">
+              <option value="">Start from&hellip;</option>
+            </select>
+          </div>
+        </div>
         <div class="row" id="row_expr" hidden>
           <label class="label" for="custom_expr"><i>f</i>(<i>z</i>, <i>c</i>)</label>
           <div class="control">
@@ -39,11 +47,28 @@
               title="Your formula, for example z^3 + z^2 + c">
           </div>
         </div>
+        <div class="row" id="row_insert" hidden>
+          <span class="label">Insert</span>
+          <div class="control pad" id="insert_pad">
+            <button type="button" data-insert="z" title="The variable z"><i>z</i></button>
+            <button type="button" data-insert="c" title="The point c"><i>c</i></button>
+            <button type="button" data-insert="i" title="The imaginary unit"><i>i</i></button>
+            <button type="button" data-insert="pi" title="pi = 3.14159&hellip;">&pi;</button>
+            <button type="button" data-insert="^" title="Power: z^3, z^2.5, z^-2">^</button>
+            <button type="button" data-insert="()" title="Brackets (around the selected text, if any)">( )</button>
+            <button type="button" data-insert="sin" title="Sine">sin</button>
+            <button type="button" data-insert="cos" title="Cosine">cos</button>
+            <button type="button" data-insert="exp" title="e to the power">exp</button>
+            <button type="button" data-insert="log" title="Natural logarithm">log</button>
+            <button type="button" data-insert="sqrt" title="Square root">&radic;</button>
+            <button type="button" data-insert="abs" title="Absolute value |z|">|&middot;|</button>
+          </div>
+        </div>
         <div class="row" id="row_start" hidden>
           <label class="label" for="custom_start">Start <i>z</i></label>
           <div class="control">
             <input type="text" id="custom_start" spellcheck="false" autocomplete="off" autocapitalize="off"
-              title="Where z starts on Fig. 1, for example 0 or pi/2">
+              title="auto: found from the formula; or a value, for example 0, 1 or pi/2">
           </div>
         </div>
         <div class="row" id="row_p" hidden>
@@ -88,11 +113,12 @@
           </div>
         </div>
         <p class="formula_error" id="formula_error"></p>
+        <p class="hint" id="start_note"></p>
         <p class="hint" id="custom_help" hidden>
-          Use <i>z</i>, <i>c</i>, <i>i</i>, pi, e, <i>n</i> (the power), + &minus; * / ^ and
-          sin, cos, tan, sinh, cosh, tanh, exp, log, sqrt, abs, conj, re, im, arg.
-          Start <i>z</i> at a point where the derivative of <i>f</i> is 0, so that
-          the two figures belong together.
+          Write it as on paper: <code>z^3 + c</code>, <code>2z</code>, <code>c sin(z)</code>,
+          <code>exp(z) + c</code>. Also tan, sinh, cosh, tanh, conj, re, im, arg,
+          and <i>n</i> for the power. Leave <i>Start z</i> on <code>auto</code>:
+          the page finds where <i>z</i> must start.
         </p>
         <div class="row">
           <span class="label"></span>

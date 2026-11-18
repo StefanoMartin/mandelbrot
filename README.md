@@ -73,14 +73,23 @@ derivative is 0).
 | Exponential | *c* e^*z* | 0 |
 | Sine | *c* sin *z* | π/2 |
 
-**Your own formula**: type any formula of *z* and *c*, for example
-`z^3 + z^2 + c`, `sin(z) * c` or `z^n + c` (n is the power setting), and the
-point where *z* starts on Fig. 1. Allowed are numbers, *z*, *c*, *n*, *i*, pi,
-e, `+ - * / ^` and brackets (`2z` and `z(z + 1)` also multiply), and the
-functions sin, cos, tan, sinh, cosh, tanh, exp, log, sqrt, abs, conj, re, im
-and arg. The formula is read as maths only and turned into a fast loop; a
-mistake is explained under the field while the last working formula stays
-drawn.
+**Your own formula**: type any formula of *z* and *c*, as on paper: `z^3 + c`,
+`2z`, `c sin(z)`, `exp(z) + c` (names written together, as `csin(z)`, are
+understood too). The *Insert* buttons put *z*, *c*, *i*, π, ^, brackets and the
+common functions at the cursor; a function goes around the selected text.
+*Examples* starts from a dozen formulas that give a good picture, with a *c*
+on the edge of the new set for Fig. 2. Allowed are numbers, *z*, *c*, *n* (the
+power), *i*, pi, e, `+ - * / ^`, brackets, and sin, cos, tan, sinh, cosh,
+tanh, exp, log, sqrt, abs, conj, re, im and arg. The formula is read as maths
+only and turned into a fast loop; a mistake is explained under the field
+while the last working formula stays drawn.
+
+Leave *Start z* on `auto`: the page looks for a critical point of the formula
+(where its derivative is 0, the same for every *c*) with Newton's method, and
+says where *z* starts (π/2 for `sin(z) + c`, *i*π/2 for `sinh(z) + c`, ½ for
+`c z (1 − z)`). Formulas with exp, sin, cos, tan, sinh, cosh or tanh, where *z*
+can grow large and come back, count a point as escaped only once |*z*| passes
+10¹⁰.
 
 The address always describes the figures (formula, power, colours, shading,
 both views and *c*), so it can be bookmarked or shared. Opening a link keeps

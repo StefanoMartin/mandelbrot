@@ -478,9 +478,73 @@ var change_custom = function(){
 	if (!currentFormula().error) { build(); }
 }
 
+// A formula from the list of examples: typed in, z started automatically,
+// and both figures at a view that shows it.
+var chooseExample = function(){
+	var example = FORMULA_EXAMPLES[byId("examples").value];
+	byId("examples").value = "";
+	if (!example) { return; }
+	settings.custom = { expr: example.expr, start: example.start || "auto" };
+	byId("custom_expr").value = settings.custom.expr;
+	byId("custom_start").value = settings.custom.start;
+	var home = example.home || [0, 0, 4];
+	mandelbrot.cx = home[0]; mandelbrot.cy = home[1]; mandelbrot.span = home[2];
+	julia.cx = 0; julia.cy = 0; julia.span = 4;
+	setIterations(mandelbrot);
+	setIterations(julia);
+	// For Fig. 2, a c on the edge of the new set, where Julia sets have the
+	// most detail: of a grid of points of Fig. 1, the one that escapes last.
+	var edge = edgePoint(mandelbrot);
+	if (edge) { julia.set_blocked(false); julia.c = edge; }
+	hideOrbit();
+	showFormulaError();
+	build();
+}
+
+var edgePoint = function(f){
+	var formula = currentFormula(), r = region(f), best = null, slowest = 0, N = 48;
+	for (var j = 1; j < N; j++){
+		for (var i = 1; i < N; i++){
+			var c = [r.x0 + (r.x1 - r.x0) * i / N, r.top - (r.top - r.bottom) * j / N];
+			var steps = followOrbit(formula.start, c, settings.power, f.iteration).escaped;
+			if (steps > slowest) { slowest = steps; best = c; }
+		}
+	}
+	return best ? [+best[0].toFixed(4), +best[1].toFixed(4)] : null;
+}
+
+// The insert buttons: put text in the formula where the cursor is. A function
+// or brackets go around the selected text, if any, else the cursor goes
+// between the brackets.
+var insertIntoFormula = function(what){
+	var field = byId("custom_expr");
+	var text = field.value;
+	var from = field.selectionStart, to = field.selectionEnd;
+	if (from === null || from === undefined) { from = to = text.length; }
+	var selected = text.slice(from, to), piece, cursor;
+	var before = text.charAt(from - 1), after = text.charAt(to);
+	if (what === "()" || /^[a-z]{2,}$/.test(what) && what !== "pi"){
+		// "c" then sin gives "c sin(", not "csin(".
+		var gap = /[a-z0-9.)]/i.test(before) ? " " : "";
+		var open = gap + (what === "()" ? "" : what) + "(";
+		piece = open + selected + ")";
+		cursor = from + (selected ? piece.length : open.length);
+	} else {
+		// Keep z, c, i and pi apart from the letters around them: "c sin(z)".
+		piece = (/[a-z0-9.)]/i.test(before) && what !== "^" ? " " : "") + what +
+		        (/[a-z0-9(]/i.test(after) && what !== "^" ? " " : "");
+		cursor = from + piece.length;
+	}
+	field.value = text.slice(0, from) + piece + text.slice(to);
+	field.focus();
+	field.setSelectionRange(cursor, cursor);
+	change_custom();
+}
+
 var showFormulaError = function(){
 	var formula = currentFormula();
 	byId("formula_error").textContent = formula.error || formula.warning || "";
+	byId("start_note").innerHTML = settings.formula === "custom" ? (formula.start_note || "") : "";
 	byId("custom_expr").classList.toggle("invalid", !!formula.error);
 	byId("power").disabled = !formula.power;
 	byId("power").title = formula.power ? "The exponent n" : "This formula has no power n";
@@ -528,6 +592,14 @@ var setupLists = function(){
 		list.appendChild(option);
 	});
 
+	var examples = byId("examples");
+	FORMULA_EXAMPLES.forEach(function(item, i){
+		var option = document.createElement("option");
+		option.value = i;
+		option.textContent = item.name;
+		examples.appendChild(option);
+	});
+
 	var famous = byId("famous");
 	FAMOUS.forEach(function(item, i){
 		var option = document.createElement("option");
@@ -549,7 +621,9 @@ var showSettings = function(){
 	byId("row_p").hidden = id !== "phoenix";
 	byId("p_re").value = settings.p[0];
 	byId("p_im").value = settings.p[1];
-	["row_expr", "row_start", "custom_help"].forEach(function(row){ byId(row).hidden = id !== "custom"; });
+	["row_examples", "row_expr", "row_insert", "row_start", "custom_help"].forEach(function(row){
+		byId(row).hidden = id !== "custom";
+	});
 	byId("custom_expr").value = settings.custom.expr;
 	byId("custom_start").value = settings.custom.start;
 	showFormulaError();
@@ -965,6 +1039,12 @@ var setupEvents = function(){
 	on("p_im", "input", change_p);
 	on("custom_expr", "input", change_custom);
 	on("custom_start", "input", change_custom);
+	on("examples", "change", chooseExample);
+	byId("insert_pad").querySelectorAll("button").forEach(function(button){
+		// Keep the cursor in the formula while a button is pressed.
+		button.addEventListener("pointerdown", function(e){ e.preventDefault(); });
+		button.addEventListener("click", function(){ insertIntoFormula(button.getAttribute("data-insert")); });
+	});
 	on("save_m", "click", function(){ savePicture(mandelbrot); });
 	on("save_j", "click", function(){ savePicture(julia); });
 	on("copy_link", "click", copyLink);

@@ -5,7 +5,7 @@
 var settings = {
   formula: "classic",   // see FORMULAS (formulas.js)
   p: [-0.5, 0],         // the extra number of the Phoenix formula
-  custom: { expr: "z^3 + z^2 + c", start: "0" },   // a typed formula
+  custom: { expr: "z^3 + z^2 + c", start: "auto" },   // a typed formula
   power: 2,       // the exponent n in z^n + c
   palette: 0,     // index into PALETTES (kernel.js)
   smooth: true,   // smooth shading instead of bands

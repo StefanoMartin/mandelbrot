@@ -119,6 +119,25 @@ var FormulaParser = (function(){
   var FUNCTIONS = ["sin", "cos", "tan", "sinh", "cosh", "tanh", "exp", "log", "ln",
                    "sqrt", "abs", "conj", "re", "im", "arg"];
 
+  // A name written without spaces, as "csin" or "zc", is read as the known
+  // names it is made of ("c sin", "z c"), the longest first; a name that is
+  // not made of known ones is kept as it is (and reported, if unknown).
+  var KNOWN = FUNCTIONS.concat(["pi", "z", "c", "n", "i", "e"]).sort(function(a, b){ return b.length - a.length; });
+  var splitName = function(name){
+    if (KNOWN.indexOf(name) >= 0) { return [name]; }
+    var parts = [], at = 0;
+    while (at < name.length){
+      var found = null;
+      for (var k = 0; k < KNOWN.length; k++){
+        if (name.substr(at, KNOWN[k].length) === KNOWN[k]) { found = KNOWN[k]; break; }
+      }
+      if (!found) { return [name]; }
+      parts.push(found);
+      at += found.length;
+    }
+    return parts;
+  };
+
   var tokenize = function(text){
     var s = text.replace(/[−–]/g, "-").replace(/[×·⋅]/g, "*")
       .replace(/²/g, "^2").replace(/³/g, "^3").replace(/\*\*/g, "^").replace(/π/g, "pi");
@@ -126,7 +145,7 @@ var FormulaParser = (function(){
     var tokens = [], m;
     while ((m = re.exec(s)) !== null && m[0].trim() !== ""){
       if (m[1] !== undefined) { tokens.push({ k: "num", v: parseFloat(m[1]) }); }
-      else if (m[2] !== undefined) { tokens.push({ k: "id", v: m[2].toLowerCase() }); }
+      else if (m[2] !== undefined) { splitName(m[2].toLowerCase()).forEach(function(v){ tokens.push({ k: "id", v: v }); }); }
       else if ("+-*/^(),".indexOf(m[3]) >= 0) { tokens.push({ k: "op", v: m[3] }); }
       else { throw new Error("“" + m[3] + "” is not understood."); }
     }
@@ -207,6 +226,12 @@ var FormulaParser = (function(){
     var tree = expr();
     if (pos < tokens.length) { throw new Error("“" + tokens[pos].v + "” is not expected there."); }
     return tree;
+  };
+
+  var calls = function(node, names){
+    if (!node) { return false; }
+    if (node.t === "call" && names.indexOf(node.f) >= 0) { return true; }
+    return calls(node.a, names) || calls(node.b, names);
   };
 
   var uses = function(node, name){
@@ -334,7 +359,15 @@ var FormulaParser = (function(){
     step: function(text){
       var tree = parse(tokenize(text), ["z", "c", "n"]);
       var code = generate(tree, true);
-      return { step: code.lines.join("\n") + "\nnr = " + code.r + "; ni = " + code.i + ";", power: uses(tree, "n") };
+      return {
+        step: code.lines.join("\n") + "\nnr = " + code.r + "; ni = " + code.i + ";",
+        power: uses(tree, "n"),
+        // Exponential and trigonometric formulas: z can grow past 2 and come
+        // back, so they need another escape rule (see currentFormula).
+        transcendental: calls(tree, ["exp", "sin", "cos", "tan", "sinh", "cosh", "tanh"]),
+        // Where the derivative is not a complex one: no automatic start.
+        holomorphic: !calls(tree, ["abs", "conj", "re", "im", "arg"])
+      };
     },
     // A constant, such as the starting point: [re, im].
     value: function(text){
@@ -344,6 +377,106 @@ var FormulaParser = (function(){
     }
   };
 })();
+
+// ---- Where z starts, found automatically ----
+
+// For the two figures to belong together, z starts on Fig. 1 at a critical
+// point of f: where its derivative f'(z) is 0, whatever c is. This looks for
+// one with Newton's method on f', worked out numerically, from a few starting
+// guesses, and keeps the one nearest to 0 that is the same for two values of
+// c. Returns {z, html} or null if there is none (c e^z has none, say).
+var findCriticalPoint = function(step, n){
+  var f = function(z, c){ return step(z[0], z[1], 0, 0, c[0], c[1], n); };
+  // f'(z): for a formula of z alone (no abs, conj...), the change along the
+  // real axis is the complex derivative.
+  var d1 = function(z, c){
+    var h = 1e-6, a = f([z[0] + h, z[1]], c), b = f([z[0] - h, z[1]], c);
+    return [(a[0] - b[0]) / (2 * h), (a[1] - b[1]) / (2 * h)];
+  };
+  var d2 = function(z, c){
+    var h = 1e-4, a = d1([z[0] + h, z[1]], c), b = d1([z[0] - h, z[1]], c);
+    return [(a[0] - b[0]) / (2 * h), (a[1] - b[1]) / (2 * h)];
+  };
+  var size = function(v){ return Math.hypot(v[0], v[1]); };
+  var C1 = [0.31, 0.17], C2 = [-0.43, 0.29];
+  var newton = function(z){
+    for (var k = 0; k < 60; k++){
+      var g = d1(z, C1), h = d2(z, C1), d = h[0] * h[0] + h[1] * h[1];
+      if (!(d > 1e-300) || !isFinite(d)) { return null; }
+      var stepZ = [(g[0] * h[0] + g[1] * h[1]) / d, (g[1] * h[0] - g[0] * h[1]) / d];
+      z = [z[0] - stepZ[0], z[1] - stepZ[1]];
+      if (!isFinite(z[0]) || !isFinite(z[1]) || size(z) > 1e3) { return null; }
+      if (size(stepZ) < 1e-12) { break; }
+    }
+    return z;
+  };
+  var best = null;
+  var guesses = [[0, 0], [0.5, 0], [-0.5, 0], [1, 0], [-1, 0], [0, 0.5], [0, -0.5],
+                 [1.5, 0], [-1.5, 0], [0, 1.5], [0.7, 0.7], [-0.7, 0.7], [2, 0], [-2, 0]];
+  guesses.forEach(function(g){
+    var z = newton(g);
+    if (!z) { return; }
+    // f' must be 0 there for both values of c, and f must have a value.
+    var scale = 1e-6 * Math.max(1, size(d2(z, C1)));
+    if (size(d1(z, C1)) > scale || size(d1(z, C2)) > scale) { return; }
+    var v = f(z, C1);
+    if (!isFinite(v[0]) || !isFinite(v[1])) { return; }
+    // Far out, e^z and the like are so small that f' only looks like 0.
+    if (size(z) > 4) { return; }
+    if (!best || size(z) < size(best) - 1e-9) { best = z; }
+  });
+  if (!best) { return null; }
+  return niceNumber(best);
+};
+
+// A point found numerically, put on the simple value it is so close to that
+// it must be that (0, 1/2, pi/2...), with a name for it. (Newton's method
+// comes slowly to a point where f' has a double zero, as z^3 + c at 0.)
+var NICE = 1e-5;
+var niceNumber = function(z){
+  var part = function(v){
+    if (Math.abs(v) < NICE) { return { v: 0, text: "0" }; }
+    for (var q = 1; q <= 12; q++){
+      var p = Math.round(v * q);
+      if (Math.abs(v - p / q) < NICE){
+        return { v: p / q, text: q === 1 ? String(p) : p + "/" + q };
+      }
+    }
+    for (var q2 = 1; q2 <= 8; q2++){
+      var p2 = Math.round(v * q2 / Math.PI);
+      if (p2 !== 0 && Math.abs(v - p2 * Math.PI / q2) < NICE){
+        var k = Math.abs(p2) === 1 ? "" : String(Math.abs(p2));
+        return { v: p2 * Math.PI / q2, text: (p2 < 0 ? "\u2212" : "") + k + "\u03c0" + (q2 === 1 ? "" : "/" + q2) };
+      }
+    }
+    return { v: v, text: formatNumber(v, 4) };
+  };
+  var re = part(z[0]), im = part(z[1]);
+  // The imaginary part: "i", "2i", "0.5i", or "iπ/2" (i first before π).
+  var imAbs = im.text.replace("\u2212", "");
+  var imHtml = Math.abs(im.v) === 1 ? "<i>i</i>"
+    : (imAbs.indexOf("\u03c0") >= 0 ? "<i>i</i>" + imAbs : imAbs + "<i>i</i>");
+  var html = im.v === 0 ? re.text
+    : (re.v === 0 ? (im.v < 0 ? "\u2212" : "") : re.text + (im.v < 0 ? " \u2212 " : " + ")) + imHtml;
+  return { z: [re.v, im.v], html: html.replace("1\u03c0", "\u03c0") };
+};
+
+// Formulas to start from, all with a picture worth seeing.
+// home: the view of Fig. 1 to start with; c: a good c for Fig. 2.
+var FORMULA_EXAMPLES = [
+  { name: "z\u00b3 + c",            expr: "z^3 + c" },
+  { name: "z\u2074 \u2212 z\u00b2 + c",  expr: "z^4 - z^2 + c", home: [0, 0, 3.2] },
+  { name: "z\u00b2\u02d9\u2075 + c",      expr: "z^2.5 + c" },
+  { name: "sin(z) + c",            expr: "sin(z) + c", home: [-1.57, 0, 7] },
+  { name: "cos(z) + c",            expr: "cos(z) + c", home: [-1, 0, 7] },
+  { name: "c \u00b7 sin(z)",        expr: "c*sin(z)", home: [0, 0, 8] },
+  { name: "c \u00b7 cos(z)",        expr: "c*cos(z)", home: [0, 0, 8] },
+  { name: "exp(z) + c",            expr: "exp(z) + c", home: [-1, 0, 8] },
+  { name: "c \u00b7 exp(z)",        expr: "c*exp(z)", home: [-1, 0, 7] },
+  { name: "sinh(z) + c",           expr: "sinh(z) + c", home: [0, 0, 7] },
+  { name: "c z (1 \u2212 z)",       expr: "c*z*(1 - z)", home: [1, 0, 6.4] },
+  { name: "z\u00b2 + c + 0.2 / z",  expr: "z^2 + c + 0.2/z" }
+];
 
 // ---- The formula in use ----
 
@@ -357,15 +490,43 @@ var currentFormula = function(){
   if (formula_cache.key === key) { return formula_cache.value; }
 
   var step = def.step, power = !!def.power, start = def.start || [0, 0], error = "";
+  var escape = def.escape || "mod >= bail", degree = def.degree, startNote = "", startText = null;
   if (def.id === "phoenix") { step = phoenixStep(settings.p); }
   if (def.id === "custom"){
     try {
       var parsed = FormulaParser.step(settings.custom.expr);
       step = parsed.step;
       power = parsed.power;
-      start = FormulaParser.value(settings.custom.start || "0");
       // Try it once, so that a mistake shows here and not in the workers.
-      new Function("zr", "zi", "yr", "yi", "cr", "ci", "n", "var nr = 0, ni = 0;\n" + step + "\nreturn [nr, ni];")(0.1, 0.2, 0, 0, 0.3, 0.4, 2);
+      var tryStep = new Function("zr", "zi", "yr", "yi", "cr", "ci", "n", "var nr = 0, ni = 0;\n" + step + "\nreturn [nr, ni];");
+      tryStep(0.1, 0.2, 0, 0, 0.3, 0.4, 2);
+      if (parsed.transcendental){
+        // e^z, sin z... grow so fast that a z this large has escaped for good.
+        escape = "mod >= 1e20";
+        degree = null;   // no smooth shading: there is no degree
+      }
+      var startField = String(settings.custom.start || "").trim().toLowerCase();
+      if (startField === "" || startField === "auto"){
+        var found = parsed.holomorphic ? findCriticalPoint(tryStep, settings.power) : null;
+        if (found){
+          start = found.z;
+          startText = found.html;
+          startNote = "Start z = auto: z starts at " + found.html + ", where f\u2032(z) = 0.";
+        } else if (!isFinite(tryStep(0, 0, 0, 0, 0.31, 0.17, settings.power)[0])){
+          // 0 is a pole (z^-2 + c): start at 1 instead.
+          start = [1, 0];
+          startText = "1";
+          startNote = "Start z = auto: no point where f\u2032(z) = 0 was found, and 0 is a pole, so z starts at 1.";
+        } else {
+          start = [0, 0];
+          startText = "0";
+          startNote = parsed.holomorphic
+            ? "Start z = auto: no point where f\u2032(z) = 0 was found, so z starts at 0."
+            : "Start z = auto: with abs, conj, re, im or arg there is no derivative to follow, so z starts at 0.";
+        }
+      } else {
+        start = FormulaParser.value(settings.custom.start);
+      }
     } catch (e) {
       // Keep drawing the last formula that worked.
       error = e.message;
@@ -377,20 +538,21 @@ var currentFormula = function(){
       step = FORMULAS[0].step; power = true; start = [0, 0];
     }
   }
-  var escape = def.escape || "mod >= bail";
   var bail = def.bail || 4;
   var value = {
     def: def,
     error: error,
     power: power,
     start: start,
+    start_text: startText,   // a typed formula started automatically: the start, as HTML
+    start_note: startNote,
     spec: {
       id: def.id,
-      loop: loopSource(step, def.escape),
+      loop: loopSource(step, escape),
       key: def.id + ":" + step + ":" + escape,
       start: start,
-      smooth: def.degree !== null,
-      degree: def.degree,   // 0: the power n (or, for a typed formula, estimated)
+      smooth: degree !== null,
+      degree: degree,   // 0: the power n (or, for a typed formula, estimated)
       bail: bail
     },
     step: new Function("zr", "zi", "yr", "yi", "cr", "ci", "n", "var nr = 0, ni = 0;\n" + step + "\nreturn [nr, ni];"),
@@ -417,6 +579,7 @@ var formulaHtml = function(){
 var startHtml = function(){
   var f = currentFormula();
   if (f.def.start_html) { return f.def.start_html; }
+  if (f.start_text) { return f.start_text; }
   return f.start[1] === 0 ? formatNumber(f.start[0], 4) : formatComplex(f.start);
 };
 

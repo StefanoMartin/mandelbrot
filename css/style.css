@@ -244,6 +244,27 @@ input:disabled {
   margin-left: auto;
 }
 
+/* Buttons that insert into a typed formula: two even lines of six. */
+.control.pad {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px;
+  padding: 2px 0;
+}
+
+.control.pad button {
+  min-width: 0;
+  height: 22px;
+  padding: 0;
+  font-size: 12px;
+}
+
+code {
+  font: 12px "Courier New", Courier, monospace;
+  font-style: normal;
+  white-space: nowrap;
+}
+
 /* ---- How to use ---- */
 
 .keys .label {
