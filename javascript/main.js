@@ -41,6 +41,9 @@ var setupEvents = function(){
 	on("palette", "change", change_palette);
 	on("shading", "change", change_smooth);
 	on("inside", "change", change_inside);
+	on("panel_open", "click", function(){ openPanel(true); });
+	on("panel_close", "click", function(){ openPanel(false); });
+	on("backdrop", "click", function(){ openPanel(false); });
 	on("quick_preview", "change", function(){ setQuickPreview(byId("quick_preview").checked); });
 	on("show", "change", function(){ setShow(byId("show").value); });
 	on("m_hide", "click", function(){ toggleFigure(mandelbrot); });

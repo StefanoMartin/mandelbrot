@@ -403,9 +403,24 @@ canvas.overlay {
   display: none;
 }
 
+.row.for_touch_row {
+  display: none;
+}
+
+/* A touch screen has no keys or wheel: what is said about them goes. */
 @media (hover: none) and (pointer: coarse) {
   .for_touch {
     display: inline;
+  }
+
+  .row.for_touch_row {
+    display: grid;
+  }
+
+  .for_keys,
+  .row.for_keys,
+  .row.for_mouse {
+    display: none;
   }
 }
 
@@ -461,33 +476,105 @@ figcaption .fig {
   color: #222;
 }
 
-/* ---- Phones and narrow windows: the figures on top, the panel below ---- */
+/* ---- Small screens ----
+   Only there: the title line with the Settings button, and the panel as a
+   sheet that slides in over the figures. */
 
-@media (max-width: 760px) {
-  body {
-    display: flex;
-    flex-direction: column;
-    font-size: 16px;
+#topbar,
+#panel_close,
+#backdrop {
+  display: none;
+}
+
+/* Phones (upright or on their side) and narrow windows: the figures get the
+   whole screen under a title line; the panel slides in from the left. */
+@media (max-width: 760px), (max-height: 500px) {
+  html, body {
+    height: 100%;
+    overflow: hidden;
   }
 
-  /* The figures fill most of the screen; the panel follows below. */
+  #topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 44px;
+    box-sizing: border-box;
+    padding: 0 10px;
+    background: #e9e4d6;
+    border-bottom: 1px solid #8c8676;
+  }
+
+  #topbar .title {
+    font-size: 18px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   #figures {
-    order: -1;
-    position: relative;
-    left: auto;
-    height: 92vh;
-    height: 92svh;
-    padding: 10px;
-    gap: 10px;
+    top: 44px;
+    left: 0;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  figcaption {
+    margin-top: 3px;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   #panel {
-    position: static;
-    width: auto;
-    padding: 14px 14px 40px;
-    overflow: visible;
-    border-right: none;
-    border-top: 1px solid #8c8676;
+    z-index: 20;
+    width: 360px;
+    max-width: 90vw;
+    padding: 12px 14px 40px;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.2s ease-out, visibility 0s linear 0.2s;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  body.panel_open #panel {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.2s ease-out;
+  }
+
+  #panel_close {
+    display: block;
+    float: right;
+    margin-left: 8px;
+  }
+
+  #panel h1 {
+    font-size: 20px;
+  }
+
+  /* Only what can be set: the figures show the rest. */
+  .info,
+  .row.info {
+    display: none;
+  }
+
+  body.panel_open #backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 15;
+    background: rgba(34, 34, 34, 0.35);
   }
 
   /* Larger targets for fingers; 16px text stops phones zooming into a field. */
@@ -508,9 +595,27 @@ figcaption .fig {
     width: 36px;
   }
 
+  .control.pad button {
+    height: 30px;
+    font-size: 14px;
+  }
+
   .check input {
     width: 18px;
     height: 18px;
     top: 3px;
+  }
+
+  .orbit_note {
+    left: 6px;
+    bottom: 6px;
+    max-width: calc(100% - 20px);
+    font-size: 12px;
+  }
+
+  .figure_button {
+    top: 6px;
+    right: 6px;
+    height: 28px;
   }
 }

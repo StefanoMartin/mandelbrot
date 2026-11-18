@@ -25,6 +25,7 @@ var keyBelongsTo = function(el, e){
 }
 
 var button_press = function(e){
+	if (e.key === "Escape" && document.body.classList.contains("panel_open")) { openPanel(false); return; }
 	if (keyBelongsTo(e.target, e)) { return; }
 	if (e.ctrlKey || e.metaKey || e.altKey) { return; }
 	if (e.keyCode == 79) {   // O: the orbit

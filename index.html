@@ -24,9 +24,17 @@
   </head>
 
   <body>
+    <!-- Small screens only: a title line with the button that opens the panel. -->
+    <div id="topbar">
+      <span class="title">Mandelbrot and Julia</span>
+      <button type="button" id="panel_open" aria-controls="panel" aria-expanded="false">Settings</button>
+    </div>
+    <div id="backdrop"></div>
+
     <div id="panel">
+      <button type="button" id="panel_close" title="Back to the figures (Esc)">Close</button>
       <h1>Mandelbrot and Julia</h1>
-      <p class="intro">
+      <p class="intro info">
         Every point <i>c</i> of the plane has a Julia set of its own.
         Move the pointer over the first figure, or click it, to choose <i>c</i>;
         the second figure shows its Julia set.
@@ -132,7 +140,7 @@
         </div>
         <label class="check" title="While a figure moves, draw it first at low resolution, then sharp when it stops: smoother on slow computers and at deep zooms">
           <input type="checkbox" id="quick_preview"><span>Quick preview while moving
-          <span class="nowrap">(key <kbd>Q</kbd>)</span></span></label>
+          <span class="nowrap for_keys">(key <kbd>Q</kbd>)</span></span></label>
         <p class="formula_error" id="formula_error"></p>
         <p class="hint" id="start_note"></p>
         <p class="hint" id="custom_help" hidden>
@@ -150,11 +158,11 @@
       <fieldset id="m_panel">
         <legend>Fig. 1 &middot; <span id="m_legend">Mandelbrot set</span></legend>
         <div class="row"><span class="label">Formula</span><span class="value formula" id="m_formula"><i>z</i><sup>2</sup> + <i>c</i>, from <i>z</i> = 0</span></div>
-        <div class="row"><span class="label">Real</span><span class="value" id="m_real">[&minus;2, 2]</span></div>
-        <div class="row"><span class="label">Imaginary</span><span class="value" id="m_imag">[&minus;2, 2]</span></div>
-        <div class="row"><span class="label">Zoom</span><span class="value" id="m_zoom">&times;1</span></div>
-        <div class="row"><span class="label">Iterations</span><span class="value" id="m_iter">200</span></div>
-        <div class="row"><span class="label"></span><span class="status" id="m_status">Drawing&hellip;</span></div>
+        <div class="row info"><span class="label">Real</span><span class="value" id="m_real">[&minus;2, 2]</span></div>
+        <div class="row info"><span class="label">Imaginary</span><span class="value" id="m_imag">[&minus;2, 2]</span></div>
+        <div class="row info"><span class="label">Zoom</span><span class="value" id="m_zoom">&times;1</span></div>
+        <div class="row info"><span class="label">Iterations</span><span class="value" id="m_iter">200</span></div>
+        <div class="row info"><span class="label"></span><span class="status" id="m_status">Drawing&hellip;</span></div>
         <div class="row">
           <span class="label">View</span>
           <div class="control">
@@ -168,11 +176,11 @@
       <fieldset id="j_panel">
         <legend>Fig. 2 &middot; Julia set</legend>
         <div class="row"><span class="label">Formula</span><span class="value formula" id="j_formula"><i>z</i><sup>2</sup> + <i>c</i></span></div>
-        <div class="row"><span class="label">Real</span><span class="value" id="j_real">[&minus;2, 2]</span></div>
-        <div class="row"><span class="label">Imaginary</span><span class="value" id="j_imag">[&minus;2, 2]</span></div>
-        <div class="row"><span class="label">Zoom</span><span class="value" id="j_zoom">&times;1</span></div>
-        <div class="row"><span class="label">Iterations</span><span class="value" id="j_iter">100</span></div>
-        <div class="row"><span class="label"></span><span class="status" id="j_status">Drawing&hellip;</span></div>
+        <div class="row info"><span class="label">Real</span><span class="value" id="j_real">[&minus;2, 2]</span></div>
+        <div class="row info"><span class="label">Imaginary</span><span class="value" id="j_imag">[&minus;2, 2]</span></div>
+        <div class="row info"><span class="label">Zoom</span><span class="value" id="j_zoom">&times;1</span></div>
+        <div class="row info"><span class="label">Iterations</span><span class="value" id="j_iter">100</span></div>
+        <div class="row info"><span class="label"></span><span class="status" id="j_status">Drawing&hellip;</span></div>
         <div class="row">
           <label class="label" for="c_re"><i>c</i></label>
           <div class="control">
@@ -191,7 +199,7 @@
           </div>
         </div>
         <label class="check"><input type="checkbox" id="freeze"><span>Keep this <i>c</i>
-          <span class="nowrap">(key <kbd>K</kbd>)</span></span></label>
+          <span class="nowrap for_keys">(key <kbd>K</kbd>)</span></span></label>
         <div class="row">
           <span class="label">View</span>
           <div class="control">
@@ -205,7 +213,7 @@
       <fieldset>
         <legend>Orbit</legend>
         <label class="check"><input type="checkbox" id="orbit"><span>Show the orbit of a point
-          <span class="nowrap">(key <kbd>O</kbd>)</span></span></label>
+          <span class="nowrap for_keys">(key <kbd>O</kbd>)</span></span></label>
         <p class="hint" id="orbit_help" hidden>
           Point at a figure<span class="for_touch"> or tap it</span>. On Fig. 1 the orbit starts at 0,
           with <i>c</i> the point; on Fig. 2 it starts at the point, with the <i>c</i> of the Julia set.
@@ -270,22 +278,24 @@
           </div>
         </div>
         <p class="hint" id="save_note"></p>
-        <p class="hint">The address always describes the figures: bookmark it, or share it.
+        <p class="hint info">The address always describes the figures: bookmark it, or share it.
           Back and Forward in the browser go through the views you explored.</p>
       </fieldset>
 
       <fieldset class="keys">
         <legend>How to use</legend>
-        <div class="row"><span class="label">Pointer</span><span class="value">on Fig. 1 chooses <i>c</i></span></div>
-        <div class="row"><span class="label">Click</span><span class="value">on Fig. 1 chooses <i>c</i> too</span></div>
+        <div class="row for_mouse"><span class="label">Pointer</span><span class="value">on Fig. 1 chooses <i>c</i></span></div>
+        <div class="row for_mouse"><span class="label">Click</span><span class="value">on Fig. 1 chooses <i>c</i> too</span></div>
+        <div class="row for_touch_row"><span class="label">Tap</span><span class="value">on Fig. 1 chooses <i>c</i></span></div>
         <div class="row"><span class="label">Drag</span><span class="value">moves a figure</span></div>
-        <div class="row"><span class="label">Wheel</span><span class="value">zooms in or out at the pointer</span></div>
-        <div class="row"><span class="label"><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></span><span class="value">move Fig. 1</span></div>
-        <div class="row"><span class="label"><kbd>&uarr;</kbd> <kbd>&larr;</kbd> <kbd>&darr;</kbd> <kbd>&rarr;</kbd></span><span class="value">move Fig. 2</span></div>
-        <div class="row"><span class="label"><kbd>K</kbd></span><span class="value">keeps or frees <i>c</i></span></div>
-        <div class="row"><span class="label"><kbd>O</kbd></span><span class="value">shows or hides the orbit</span></div>
-        <div class="row"><span class="label"><kbd>Q</kbd></span><span class="value">turns the quick preview on or off</span></div>
-        <p class="hint">A typed <i>c</i> is kept. The deeper the zoom, the more iterations
+        <div class="row for_mouse"><span class="label">Wheel</span><span class="value">zooms in or out at the pointer</span></div>
+        <div class="row for_touch_row"><span class="label">Pinch</span><span class="value">two fingers zoom and move a figure</span></div>
+        <div class="row for_keys"><span class="label"><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></span><span class="value">move Fig. 1</span></div>
+        <div class="row for_keys"><span class="label"><kbd>&uarr;</kbd> <kbd>&larr;</kbd> <kbd>&darr;</kbd> <kbd>&rarr;</kbd></span><span class="value">move Fig. 2</span></div>
+        <div class="row for_keys"><span class="label"><kbd>K</kbd></span><span class="value">keeps or frees <i>c</i></span></div>
+        <div class="row for_keys"><span class="label"><kbd>O</kbd></span><span class="value">shows or hides the orbit</span></div>
+        <div class="row for_keys"><span class="label"><kbd>Q</kbd></span><span class="value">turns the quick preview on or off</span></div>
+        <p class="hint info">A typed <i>c</i> is kept. The deeper the zoom, the more iterations
           are used, so the detail stays sharp.</p>
       </fieldset>
     </div>

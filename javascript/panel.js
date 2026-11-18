@@ -228,3 +228,10 @@ var showSettings = function(){
 	byId("custom_start").value = settings.custom.start;
 	showFormulaError();
 }
+
+// ---- Small screens: the panel slides in over the figures ----
+
+var openPanel = function(open){
+	document.body.classList.toggle("panel_open", !!open);
+	byId("panel_open").setAttribute("aria-expanded", open ? "true" : "false");
+}

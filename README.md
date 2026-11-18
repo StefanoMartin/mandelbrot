@@ -14,11 +14,19 @@ page works offline, also straight from disk.
 | Pointer on Fig. 1 | chooses *c* (or click; tap on a touch screen) |
 | Drag | moves a figure |
 | Mouse wheel | zooms in or out at the pointer |
+| Two fingers | pinch to zoom, and move, on a touch screen |
 | `W` `A` `S` `D` | move Fig. 1 |
 | Arrow keys | move Fig. 2 |
 | `K` | keeps or frees *c* |
 | `O` | shows or hides the orbit |
 | `Q` | turns the quick preview on or off |
+
+On a phone, or in a small window (narrower than 760 pixels or lower than
+500), the figures get the whole screen under a title line, and the panel
+slides in over them with the *Settings* button (*Close*, a tap beside it or
+`Esc` puts it away). There the panel keeps only what can be set: the coordinates,
+zoom and timing readouts and the explanations are left out, and on a touch
+screen the keyboard shortcuts are not mentioned.
 
 In the panel:
 

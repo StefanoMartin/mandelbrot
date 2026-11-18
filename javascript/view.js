@@ -123,28 +123,51 @@ var DRAG_SLOP = 4;
 
 var setupDrag = function(f){
 	var canvas = byId(f.type);
-	var drag = null;   // {id, x, y, startX, startY, moved}
+	var pointers = {};   // pointerId -> {x, y}: the fingers (or the mouse) down on the figure
+	var count = 0;
+	var gesture = null;  // {x, y, dist, startX, startY, moved}: centre and spread of the pointers
+
+	// Where the pointers are together: their centre, and how far apart two are.
+	var measure = function(){
+		var ids = Object.keys(pointers), x = 0, y = 0;
+		ids.forEach(function(id){ x += pointers[id].x; y += pointers[id].y; });
+		x /= ids.length; y /= ids.length;
+		var dist = ids.length > 1
+			? Math.hypot(pointers[ids[0]].x - pointers[ids[1]].x, pointers[ids[0]].y - pointers[ids[1]].y) : 0;
+		return { x: x, y: y, dist: dist };
+	};
+	// A pointer more or fewer: start again from where they are now, so the
+	// view does not jump.
+	var restart = function(){
+		var m = measure();
+		gesture = { x: m.x, y: m.y, dist: m.dist, startX: m.x, startY: m.y,
+		            moved: gesture ? gesture.moved || count > 1 : count > 1 };
+	};
 
 	canvas.addEventListener("pointerdown", function(e){
 		if (e.pointerType === "mouse" && e.button !== 0) { return; }
-		if (drag) { return; }   // one pointer at a time
+		if (count >= 2) { return; }   // two fingers at most
 		e.preventDefault();
 		canvas.setPointerCapture(e.pointerId);
-		drag = { id: e.pointerId, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, moved: false };
+		pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+		count++;
+		restart();
 	});
 
 	canvas.addEventListener("pointermove", function(e){
-		if (!drag || e.pointerId !== drag.id){
+		if (!pointers[e.pointerId]){
 			// Only hovering: on Fig. 1 a mouse chooses c as it goes.
-			if (e.pointerType === "mouse" && !drag){
+			if (e.pointerType === "mouse" && !count){
 				if (f === mandelbrot) { create_julia(e); }
 				orbitAt(f, e);
 			}
 			return;
 		}
-		if (!drag.moved){
-			if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < DRAG_SLOP) { return; }
-			drag.moved = true;
+		pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+		var m = measure();
+		if (!gesture.moved){
+			if (Math.hypot(m.x - gesture.startX, m.y - gesture.startY) < DRAG_SLOP) { return; }
+			gesture.moved = true;
 			canvas.classList.add("grabbing");
 		}
 		// CSS pixels moved -> canvas pixels -> units of the plane. The view
@@ -152,22 +175,28 @@ var setupDrag = function(f){
 		var rect = canvas.getBoundingClientRect();
 		var scale = canvas.width / (rect.width - 2 * canvas.clientLeft);
 		var step = region(f).step * scale;
-		f.cx -= (e.clientX - drag.x) * step;
-		f.cy += (e.clientY - drag.y) * step;
-		drag.x = e.clientX;
-		drag.y = e.clientY;
-		f.paint();
+		f.cx -= (m.x - gesture.x) * step;
+		f.cy += (m.y - gesture.y) * step;
+		// Two fingers spreading or pinching zoom around the point between them.
+		if (count > 1 && gesture.dist > 0 && m.dist > 0){
+			zoom_at(f, m.dist / gesture.dist, canvasPoint(canvas, f, { clientX: m.x, clientY: m.y }));
+		} else {
+			f.paint();
+		}
+		gesture.x = m.x; gesture.y = m.y; gesture.dist = m.dist;
 	});
 
 	var end = function(e){
-		if (!drag || e.pointerId !== drag.id) { return; }
+		if (!pointers[e.pointerId]) { return; }
 		// A click (or tap) on Fig. 1 chooses c there.
-		if (!drag.moved && e.type === "pointerup"){
+		if (count === 1 && !gesture.moved && e.type === "pointerup"){
 			if (f === mandelbrot) { create_julia(e); }
 			orbitAt(f, e);
 		}
-		drag = null;
-		canvas.classList.remove("grabbing");
+		delete pointers[e.pointerId];
+		count--;
+		if (count) { restart(); }
+		else { gesture = null; canvas.classList.remove("grabbing"); }
 	};
 	canvas.addEventListener("pointerup", end);
 	canvas.addEventListener("pointercancel", end);
