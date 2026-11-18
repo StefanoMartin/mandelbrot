@@ -41,6 +41,7 @@ var setupEvents = function(){
 	on("palette", "change", change_palette);
 	on("shading", "change", change_smooth);
 	on("inside", "change", change_inside);
+	on("quick_preview", "change", function(){ setQuickPreview(byId("quick_preview").checked); });
 	on("show", "change", function(){ setShow(byId("show").value); });
 	on("m_hide", "click", function(){ toggleFigure(mandelbrot); });
 	on("j_hide", "click", function(){ toggleFigure(julia); });

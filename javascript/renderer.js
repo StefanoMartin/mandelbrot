@@ -10,9 +10,10 @@
 //   mouse movement; if the running job is already slow it is abandoned instead,
 //   so the view reacts immediately.
 // - Slow jobs are drawn progressively, strip by strip.
-// - Quick preview: when a figure took long to draw last time, it is first
-//   drawn at a quarter (or an eighth) of the resolution, which takes 16 (or
-//   64) times less, and shown enlarged; then sharp. While new requests keep
+// - Quick preview (when turned on: key Q): a figure is first drawn at a
+//   quarter of the resolution, which takes 16 times less (an eighth, 64
+//   times less, when it took long to draw last time), and shown enlarged;
+//   then sharp. While new requests keep
 //   coming (dragging, zooming, moving the pointer for c) only previews are
 //   drawn, and a sharp drawing under way is dropped at once: the figure
 //   follows the pointer, and turns sharp when it stops.
@@ -21,8 +22,8 @@ var Renderer = (function () {
   var CHUNK_ROWS = 16;
   var ABANDON_AFTER_MS = 150;   // replace (not queue behind) jobs older than this
   var PROGRESSIVE_AFTER_MS = 100;
-  var PREVIEW_FROM_MS = 60;     // a drawing expected to take longer gets a preview
-  var COARSER_FROM_MS = 600;    // ... a coarser one from this long
+  var COARSER_FROM_MS = 600;    // a drawing expected to take longer gets a coarser preview
+  var previewOn = false;        // Quick preview, turned on and off from the page
   var msPerPixel = {};          // channel -> time per pixel of its last sharp drawing
 
   var workers = [];
@@ -88,9 +89,8 @@ var Renderer = (function () {
   // How much smaller the preview of a request is drawn (1: no preview).
   function previewFactor(channel, request) {
     var p = request.params;
-    if (!request.preview || !msPerPixel[channel]) { return 1; }
-    var expected = msPerPixel[channel] * p.width * p.height;
-    if (expected < PREVIEW_FROM_MS) { return 1; }
+    if (!request.preview || !previewOn) { return 1; }
+    var expected = (msPerPixel[channel] || 0) * p.width * p.height;
     var factor = expected < COARSER_FROM_MS ? 4 : 8;
     return Math.min(p.width, p.height) / factor >= 8 ? factor : 1;
   }
@@ -243,6 +243,8 @@ var Renderer = (function () {
   return {
     render: render,
     scheduler: scheduler,
+    setPreview: function (on) { previewOn = !!on; },
+    previewing: function () { return previewOn; },
     usingWorkers: function () { return useWorkers; },
     workerCount: function () { return workers.length; }
   };

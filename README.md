@@ -18,6 +18,7 @@ page works offline, also straight from disk.
 | Arrow keys | move Fig. 2 |
 | `K` | keeps or frees *c* |
 | `O` | shows or hides the orbit |
+| `Q` | turns the quick preview on or off |
 
 In the panel:
 
@@ -148,8 +149,9 @@ Zooming stops near ×10¹³, where double-precision numbers run out.
 - Colours come from a lookup table.
 - The work is shared between Web Workers; a figure that takes long appears
   strip by strip, and a newer request replaces a slow one.
-- Quick preview: a figure that took long to draw last time is first drawn at a
-  quarter (or an eighth) of the resolution, then sharp. While you drag, zoom or
+- Quick preview (*Quick preview while moving* in Settings, or key `Q`; off
+  at first, and remembered): a figure is first drawn at a quarter of the
+  resolution (an eighth when it took long last time), then sharp. While you drag, zoom or
   move the pointer, only previews are drawn, so the figure follows at once;
   it turns sharp when you stop. Saved pictures are always drawn sharp.
 

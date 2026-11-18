@@ -35,6 +35,10 @@ var button_press = function(e){
 		e.preventDefault();
 		if (!e.repeat) { julia.set_blocked(!julia.blocked); placeMarker(); }
 	}
+	else if (e.keyCode == 81) {   // Q: quick preview while moving
+		e.preventDefault();
+		if (!e.repeat) { setQuickPreview(!Renderer.previewing()); }
+	}
 	else if (KEYS[e.keyCode]) {
 		e.preventDefault();
 		var k = KEYS[e.keyCode];

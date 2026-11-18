@@ -2,6 +2,7 @@
 
 var POWER_MIN = 1, POWER_MAX = 10;
 var PALETTE_KEY = "mandelbrot-julia.palette";
+var PREVIEW_KEY = "mandelbrot-julia.preview";
 
 // ---- Settings ----
 
@@ -139,6 +140,13 @@ var change_palette = function(){
 	build();
 }
 
+// Quick preview while moving (key Q): on or off, kept for the next visit.
+var setQuickPreview = function(on){
+	Renderer.setPreview(on);
+	byId("quick_preview").checked = !!on;
+	try { localStorage.setItem(PREVIEW_KEY, on ? "1" : "0"); } catch (e) { /* not kept: fine */ }
+}
+
 // Shading: "smooth", "bands", "lines" or "relief".
 var setShading = function(shading){
 	settings.smooth = shading !== "bands";
@@ -172,6 +180,8 @@ var setupLists = function(){
 	var saved = null;
 	try { saved = parseInt(localStorage.getItem(PALETTE_KEY), 10); } catch (e) { saved = null; }
 	settings.palette = PALETTES[saved] ? saved : 0;
+	try { saved = localStorage.getItem(PREVIEW_KEY); } catch (e) { saved = null; }
+	setQuickPreview(saved === "1");
 
 	var list = byId("formula");
 	FORMULAS.forEach(function(item){
