@@ -4,8 +4,15 @@ A small web page that draws the Mandelbrot set beside the Julia set of the
 point *c* under the pointer. Every point *c* of the plane has a Julia set of
 its own: moving over the Mandelbrot set shows how they change.
 
-Open `index.html` in a browser. Nothing needs to be installed or built, and the
-page works offline, also straight from disk.
+**Try it online:** <https://stefanomartin.github.io/mandelbrot/>
+(published with GitHub Pages from this repository; it works on phones and
+tablets too).
+
+To run it locally, open `index.html` in a browser. Nothing needs to be
+installed or built, and the page works offline, also straight from disk.
+
+A link copied from the page (*Copy link*, or the address bar) opens the same
+figures for anyone: on the online page, it can be shared as it is.
 
 ## Using it
 
