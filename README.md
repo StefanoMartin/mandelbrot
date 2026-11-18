@@ -113,7 +113,16 @@ Zooming stops near ×10¹³, where double-precision numbers run out.
 | `javascript/figures.js` | the two figures and the settings they share |
 | `javascript/formulas.js` | the formulas, and the reader for typed ones |
 | `javascript/orbit.js` | follows and draws the orbit of a point |
-| `javascript/main.js` | panel, pointer, keys, layout, links and saving |
+| `javascript/format.js` | finding elements; numbers as they are shown and typed |
+| `javascript/view.js` | the views: zooming, moving, dragging, layout, showing one figure |
+| `javascript/point.js` | the point *c*: chosen, typed, famous values, its mark |
+| `javascript/panel.js` | the Settings section: formula, power, colours, shading, typed formulas |
+| `javascript/links.js` | links, and Back / Forward |
+| `javascript/saving.js` | saving pictures, copying the link |
+| `javascript/places.js` | places worth seeing, and favourites |
+| `javascript/keys.js` | keyboard shortcuts |
+| `javascript/main.js` | wiring: the events of the page, and what happens when it opens |
+| `tests/` | the tests (see below) |
 
 ## How the drawing is fast
 
@@ -126,3 +135,27 @@ Zooming stops near ×10¹³, where double-precision numbers run out.
 - Colours come from a lookup table.
 - The work is shared between Web Workers; a figure that takes long appears
   strip by strip, and a newer request replaces a slow one.
+- Quick preview: a figure that took long to draw last time is first drawn at a
+  quarter (or an eighth) of the resolution, then sharp. While you drag, zoom or
+  move the pointer, only previews are drawn, so the figure follows at once;
+  it turns sharp when you stop. Saved pictures are always drawn sharp.
+
+## Tests
+
+    node tests/run.js
+
+Needs only Node (version 14 or later), nothing to install; takes a few seconds.
+The page's scripts are loaded as they are, with small stand-ins for the browser.
+The tests check that:
+
+- with *Classic* colours and *Bands*, the pictures are exactly, byte for
+  byte, what the original page drew (`tests/reference.js` is its algorithm);
+- a typed `z^n + c` draws the same picture as the built-in formula;
+- every formula draws in every shading;
+- typed formulas compute the right values, explain mistakes, and refuse
+  anything that is not maths;
+- *Start z = auto* finds the right starting point (π/2 for `sin(z) + c`…);
+- links bring back everything they describe;
+- Back and Forward get a new step exactly when they should.
+
+The command ends with an error code when a test fails.

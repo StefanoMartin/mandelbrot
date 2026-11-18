@@ -10,11 +10,20 @@
 //   mouse movement; if the running job is already slow it is abandoned instead,
 //   so the view reacts immediately.
 // - Slow jobs are drawn progressively, strip by strip.
+// - Quick preview: when a figure took long to draw last time, it is first
+//   drawn at a quarter (or an eighth) of the resolution, which takes 16 (or
+//   64) times less, and shown enlarged; then sharp. While new requests keep
+//   coming (dragging, zooming, moving the pointer for c) only previews are
+//   drawn, and a sharp drawing under way is dropped at once: the figure
+//   follows the pointer, and turns sharp when it stops.
 // - If workers are unavailable, everything is rendered on the main thread.
 var Renderer = (function () {
   var CHUNK_ROWS = 16;
   var ABANDON_AFTER_MS = 150;   // replace (not queue behind) jobs older than this
   var PROGRESSIVE_AFTER_MS = 100;
+  var PREVIEW_FROM_MS = 60;     // a drawing expected to take longer gets a preview
+  var COARSER_FROM_MS = 600;    // ... a coarser one from this long
+  var msPerPixel = {};          // channel -> time per pixel of its last sharp drawing
 
   var workers = [];
   var idle = [];
@@ -57,7 +66,7 @@ var Renderer = (function () {
     Object.keys(jobs).forEach(function (ch) {
       var job = jobs[ch];
       delete jobs[ch];
-      renderSync(job.canvas, job.params, job.onDone);
+      renderSync(job.canvas, job.request.params, job.onDone);
     });
   }
 
@@ -76,17 +85,54 @@ var Renderer = (function () {
     if (onDone) { onDone(now() - t0); }
   }
 
-  function startJob(channel, canvas, params, onDone) {
-    var ctx = prepareCanvas(canvas, params);
+  // How much smaller the preview of a request is drawn (1: no preview).
+  function previewFactor(channel, request) {
+    var p = request.params;
+    if (!request.preview || !msPerPixel[channel]) { return 1; }
+    var expected = msPerPixel[channel] * p.width * p.height;
+    if (expected < PREVIEW_FROM_MS) { return 1; }
+    var factor = expected < COARSER_FROM_MS ? 4 : 8;
+    return Math.min(p.width, p.height) / factor >= 8 ? factor : 1;
+  }
+
+  // A request: {canvas, params, onDone, preview}. Starts its preview if it
+  // gets one, else its sharp drawing.
+  function startRequest(channel, request) {
+    var factor = previewFactor(channel, request);
+    if (factor === 1) { startJob(channel, request, "sharp", 1); return; }
+    var p = request.params, small = {};
+    for (var key in p) { small[key] = p[key]; }   // the same view, with larger pixels
+    small.width = Math.ceil(p.width / factor);
+    small.height = Math.ceil(p.height / factor);
+    small.lineScale = (p.lineScale || 1) / factor;
+    startJob(channel, request, "preview", factor, small);
+  }
+
+  function startJob(channel, request, phase, factor, params) {
+    params = params || request.params;
+    var ctx = prepareCanvas(request.canvas, request.params);   // the canvas keeps its full size
     var img = ctx.createImageData(params.width, params.height);
     jobs[channel] = {
-      id: nextJobId++, channel: channel, canvas: canvas, ctx: ctx,
-      params: params, onDone: onDone,
+      id: nextJobId++, channel: channel, canvas: request.canvas, ctx: ctx,
+      request: request, phase: phase, factor: factor,
+      params: params, onDone: request.onDone,
       image: img, pixels: new Uint32Array(img.data.buffer),
       nextRow: 0, rowsDone: 0, started: now(),
-      progressive: false, doneStrips: [], queued: null
+      // After a preview, the sharp strips replace it as soon as they come.
+      progressive: phase === "sharp" && request.previewed, doneStrips: [], queued: null
     };
     dispatch();
+  }
+
+  // Show a finished preview enlarged to the whole canvas.
+  function showPreview(job) {
+    var small = document.createElement("canvas");
+    small.width = job.params.width;
+    small.height = job.params.height;
+    small.getContext("2d").putImageData(job.image, 0, 0);
+    job.ctx.imageSmoothingEnabled = true;     // soft rather than blocky
+    job.ctx.imageSmoothingQuality = "high";
+    job.ctx.drawImage(small, 0, 0, job.canvas.width, job.canvas.height);
   }
 
   // Hand strips to idle workers, alternating between channels.
@@ -126,13 +172,19 @@ var Renderer = (function () {
     job.rowsDone += d.rowEnd - d.rowStart;
 
     if (job.rowsDone >= job.params.height) {
-      job.ctx.putImageData(job.image, 0, 0);
       delete jobs[job.channel];
-      if (job.onDone) { job.onDone(now() - job.started); }
-      if (job.queued) {
-        var q = job.queued;
-        startJob(job.channel, q.canvas, q.params, q.onDone);
+      if (job.phase === "preview") {
+        showPreview(job);
+        // More requests came meanwhile: preview the newest; else draw sharp.
+        if (job.queued) { startRequest(job.channel, job.queued); }
+        else { job.request.previewed = true; startJob(job.channel, job.request, "sharp", 1); }
+        return;
       }
+      job.ctx.putImageData(job.image, 0, 0);
+      var ms = now() - job.started;
+      msPerPixel[job.channel] = ms / (job.params.width * job.params.height);
+      if (job.onDone) { job.onDone(ms); }
+      if (job.queued) { startRequest(job.channel, job.queued); }
       return;
     }
 
@@ -150,18 +202,28 @@ var Renderer = (function () {
     }
   }
 
-  // Public: render `params` into `canvas`. onDone(ms) is called when finished.
-  function render(channel, canvas, params, onDone) {
+  // Public: render `params` into `canvas`. onDone(ms) is called when the
+  // sharp drawing is finished. options.preview = false: no preview (pictures
+  // being saved).
+  function render(channel, canvas, params, onDone, options) {
     if (!useWorkers) { renderSync(canvas, params, onDone); return; }
+    var request = { canvas: canvas, params: params, onDone: onDone,
+                    preview: !(options && options.preview === false) };
     var running = jobs[channel];
-    var sameSize = running && running.params.width === params.width &&
-                   running.params.height === params.height;
-    if (running && sameSize && now() - running.started < ABANDON_AFTER_MS) {
-      running.queued = { canvas: canvas, params: params, onDone: onDone };
-      return;
+    if (running) {
+      var r = running.request.params;
+      var sameSize = r.width === params.width && r.height === params.height;
+      // A preview is quick: let it finish, and keep only the newest request.
+      if (running.phase === "preview" && sameSize) { running.queued = request; return; }
+      // A sharp drawing after a preview is dropped: the view has moved on.
+      // One without a preview is waited for if it has only just begun.
+      if (!running.request.previewed && sameSize && now() - running.started < ABANDON_AFTER_MS) {
+        running.queued = request;
+        return;
+      }
+      delete jobs[channel];   // abandoned; its late strips are ignored
     }
-    if (running) { delete jobs[channel]; }   // abandon; late strips are ignored
-    startJob(channel, canvas, params, onDone);
+    startRequest(channel, request);
   }
 
   // Draw at most once per frame: many requests in the same frame (e.g. a burst
