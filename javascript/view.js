@@ -24,6 +24,8 @@ var viewParams = function(f){
 		formula: currentFormula().spec,
 		smooth: settings.smooth,
 		lines: settings.lines,
+		relief: settings.relief,
+		periods: settings.inside === "period",
 		lineScale: f.dpr
 	};
 	// Schemes that adapt spread their colours over the escape counts in view,

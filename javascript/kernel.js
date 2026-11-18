@@ -21,6 +21,9 @@ function fractalKernel(scope) {
   var FINE = 2048;        // entries of the table used for smooth shading
   var BAIL_SMOOTH = 1e6;  // |z|^2 at which smooth shading stops iterating
   var lastMod2 = 0;       // |z|^2 when escape() last saw a point escape
+  var lastPeriod = 0;     // length of the cycle an inside point settled into (0: not known)
+  var wantPeriod = false; // look for it at the end of the iterations (Inside: By cycle)
+  var PERIOD_MAX = 64;
 
   // Colour on the blend at position c (0..3) of a scheme, written as RGBA
   // bytes at o. From points that escape at once (the first stop) to those
@@ -70,6 +73,7 @@ function fractalKernel(scope) {
   // (zr, zi) is the starting z, (cr, ci) the constant; the point has escaped
   // once |z|^2 >= bail (4 for banded shading, as the original page did).
   function escape(zr, zi, cr, ci, n, maxIter, bail) {
+    lastPeriod = 0;
     if (zr * zr + zi * zi >= bail) { lastMod2 = zr * zr + zi * zi; return 1; }
     var pr = zr, pi = zi;          // periodicity reference point
     var check = 8, sinceCheck = 0; // Brent-style doubling window
@@ -81,7 +85,7 @@ function fractalKernel(scope) {
         zr = zr2 - zi2 + cr;
         zr2 = zr * zr; zi2 = zi * zi;
         if (zr2 + zi2 >= bail) { lastMod2 = zr2 + zi2; return ii + 1; }
-        if (zr === pr && zi === pi) { return 0; }
+        if (zr === pr && zi === pi) { lastPeriod = sinceCheck + 1; return 0; }
         if (++sinceCheck === check) { sinceCheck = 0; check *= 2; pr = zr; pi = zi; }
       }
     } else {
@@ -91,28 +95,90 @@ function fractalKernel(scope) {
         zr = ar + cr; zi = ai + ci;
         m = zr * zr + zi * zi;
         if (m >= bail) { lastMod2 = m; return ii + 1; }
-        if (zr === pr && zi === pi) { return 0; }
+        if (zr === pr && zi === pi) { lastPeriod = sinceCheck + 1; return 0; }
         if (++sinceCheck === check) { sinceCheck = 0; check *= 2; pr = zr; pi = zi; }
       }
     }
+    if (wantPeriod) { lastPeriod = findPeriod(zr, zi, cr, ci, n); }
     return 0;
+  }
+
+  // The length of the cycle that z (after all the iterations) has settled
+  // into: the first step that brings it back to within 1e-10 of itself.
+  function findPeriod(zr, zi, cr, ci, n) {
+    var sr = zr, si = zi, tol = 1e-20 * (1 + sr * sr + si * si), t;
+    for (var p = 1; p <= PERIOD_MAX; p++) {
+      var ar = 1, ai = 0;
+      for (var k = 0; k < n; k++) { t = ar * zr - ai * zi; ai = ai * zr + ar * zi; ar = t; }
+      zr = ar + cr; zi = ai + ci;
+      var dr = zr - sr, di = zi - si;
+      if (dr * dr + di * di < tol) { return p; }
+    }
+    return 0;
+  }
+
+  // Colours of the inside: by the length of the cycle (Inside: By cycle) or
+  // all in the scheme's inside colour. A cycle of 1 (the main body of the
+  // Mandelbrot set) and an unknown one keep the inside colour.
+  var PERIOD_INKS = ["#2f6b3a", "#b07d2b", "#8a2b1a", "#2f5687", "#6a3d7a", "#2b7a78",
+                     "#a0522d", "#3f4f8f", "#7a6a1f", "#8f3f6f", "#4f6f3a"];
+  var periodTables = {};
+  function periodTable(inside) {
+    var key = String(inside);
+    if (periodTables[key]) { return periodTables[key]; }
+    var t = new Uint32Array(PERIOD_MAX + 1);
+    for (var p = 0; p <= PERIOD_MAX; p++) {
+      if (p < 2) { t[p] = inside; continue; }
+      var n = parseInt(PERIOD_INKS[(p - 2) % PERIOD_INKS.length].slice(1), 16);
+      t[p] = (0xff000000 | ((n & 255) << 16) | (n & 0xff00) | ((n >> 16) & 255)) >>> 0;
+    }
+    periodTables[key] = t;
+    return t;
   }
 
   // ---- Other formulas (formulas.js): compiled loops ----
 
   var loops = {};                    // compiled loops, by formula key
-  var mods = new Float64Array(2);    // |z|^2 at escape and one step before
+  var mods = new Float64Array(4);    // |z|^2 at escape and one step before; cycle length; root
 
   function loopFor(fm) {
     var run = loops[fm.key];
     if (!run) {
-      run = loops[fm.key] = new Function("zr", "zi", "cr", "ci", "maxIter", "bail", "n", "m", fm.loop);
+      run = loops[fm.key] = new Function("zr", "zi", "cr", "ci", "maxIter", "bail", "n", "m", "wp", fm.loop);
     }
     return run;
   }
 
+  // Formulas that look for roots (Newton): a point is coloured by the root
+  // it reaches, darker the longer it takes (t from 0 to 1).
+  var ROOT_INKS = ["#d9a441", "#4f86b0", "#b5533c"];
+  var ROOT_EPS2 = 1e-12;   // |z - root|^2 at which a root counts as reached
+  var rootTables = {};
+  function rootTable(colours) {
+    if (rootTables[colours.key]) { return rootTables[colours.key]; }
+    var bytes = new Uint8ClampedArray(3 * FINE * 4), dark = colours.inside;
+    for (var r = 0; r < 3; r++) {
+      var n = parseInt(ROOT_INKS[r].slice(1), 16), ink = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+      for (var k = 0; k < FINE; k++) {
+        var t = Math.pow(k / (FINE - 1), 0.7), o = (r * FINE + k) * 4;
+        for (var q = 0; q < 3; q++) { bytes[o + q] = ink[q] + (dark[q] - ink[q]) * t; }
+        bytes[o + 3] = 255;
+      }
+    }
+    return (rootTables[colours.key] = new Uint32Array(bytes.buffer));
+  }
+
+  // The smooth count of a point that reached a root after `it` steps, with
+  // |z - root|^2 = d2 (Newton's method: the distance squares at each step).
+  function rootValue(it, d2) {
+    var t = Math.log(d2) / Math.log(ROOT_EPS2);
+    return t > 1 && t < Infinity ? it - Math.log(t) / Math.LN2 : it;
+  }
+
   function renderFormula(p, rowStart, rowEnd) {
     var fm = p.formula, run = loopFor(fm);
+    var roots = fm.mode === "roots", rootLut = roots ? rootTable(p.colours) : null;
+    var wp = !!p.periods;
     var w = p.width;
     var out = new Uint32Array(w * (rowEnd - rowStart));
     var n = p.power, maxIter = p.maxIter;
@@ -137,9 +203,15 @@ function fractalKernel(scope) {
       var y = -(j * yr + p.y0);
       for (var i = 0; i < w; i++) {
         var x = i * xr + p.x0;
-        var it = isM ? run(sr, si, x, y, maxIter, bail, n, mods)
-                     : run(x, y, p.cr, p.ci, maxIter, bail, n, mods);
-        if (it === 0) { out[idx++] = inside; continue; }
+        var it = isM ? run(sr, si, x, y, maxIter, bail, n, mods, wp)
+                     : run(x, y, p.cr, p.ci, maxIter, bail, n, mods, wp);
+        if (it === 0) { out[idx++] = wp ? periodTable(inside)[mods[2]] : inside; continue; }
+        if (roots) {
+          var rv = smooth ? rootValue(it, mods[0]) : it;
+          var rf = Math.log((rv > low ? rv - low : 0) + 1) * toFine;
+          out[idx++] = rootLut[mods[3] * FINE + (rf >= FINE - 1 ? FINE - 1 : (rf + 0.5) | 0)];
+          continue;
+        }
         if (!smooth) { out[idx++] = lut[it]; continue; }
         var m0 = mods[0], m1 = mods[1], nu = it, ld = logD;
         if (estimate) {
@@ -179,27 +251,37 @@ function fractalKernel(scope) {
       isM: p.type === "mandelbrot",
       start: classic ? [0, 0] : fm.start,
       cr: p.cr, ci: p.ci,
-      bulb: classic && n === 2 && p.type === "mandelbrot"
+      bulb: classic && n === 2 && p.type === "mandelbrot",
+      roots: !classic && fm.mode === "roots",
+      wp: !!p.periods
     };
   }
 
+  // In pointValue, the root a point reached (Newton) is added as
+  // root * ROOT_SPACING: smooth counts stay far below it.
+  var ROOT_SPACING = 1e4;
+
   // The smooth count of a point (the plain count where there is no smooth
-  // one), or -1 inside the set.
+  // one); inside the set, -1 - the length of its cycle (-1 when not known).
+  // For Newton, the root reached is added as root * ROOT_SPACING.
   function pointValue(k, x, y) {
     var it, m0, m1 = 0;
     if (k.classic) {
       if (k.bulb) {
         var y2 = y * y, xq = x - 0.25, q = xq * xq + y2;
-        if (q * (q + xq) <= 0.25 * y2 || (x + 1) * (x + 1) + y2 <= 0.0625) { return -1; }
+        if (q * (q + xq) <= 0.25 * y2) { return -2; }             // main body: cycle of 1
+        if ((x + 1) * (x + 1) + y2 <= 0.0625) { return -3; }      // the disc on its left: cycle of 2
       }
       it = k.isM ? escape(0, 0, x, y, k.n, k.maxIter, k.bail) : escape(x, y, k.cr, k.ci, k.n, k.maxIter, k.bail);
+      if (it === 0) { return -1 - lastPeriod; }
       m0 = lastMod2;
     } else {
-      it = k.isM ? k.run(k.start[0], k.start[1], x, y, k.maxIter, k.bail, k.n, mods)
-                 : k.run(x, y, k.cr, k.ci, k.maxIter, k.bail, k.n, mods);
+      it = k.isM ? k.run(k.start[0], k.start[1], x, y, k.maxIter, k.bail, k.n, mods, k.wp)
+                 : k.run(x, y, k.cr, k.ci, k.maxIter, k.bail, k.n, mods, k.wp);
+      if (it === 0) { return -1 - mods[2]; }
       m0 = mods[0]; m1 = mods[1];
+      if (k.roots) { return (k.smooth ? rootValue(it, m0) : it) + mods[3] * ROOT_SPACING; }
     }
-    if (it === 0) { return -1; }
     if (!k.smooth) { return it; }
     var ld = k.logD;
     if (k.estimate) {
@@ -215,16 +297,30 @@ function fractalKernel(scope) {
   var BOUNDARY = 0.25;    // distance taken for a pixel next to an inside one
   var UNDERTONE = 0.18;   // how much of the smooth shading shows under the lines
 
+  // ---- Relief: the outside lit from the upper left, as if embossed ----
+  //
+  // The smooth count rises towards the set, like the slope of a hill; a slope
+  // that faces the light (rising towards the lower right) is lightened, one
+  // that faces away is darkened, the more the steeper it is.
+  var RELIEF = 0.55;        // strongest lightening or darkening
+  var STEEPNESS = 5;        // how soon a slope counts as steep (per CSS pixel)
+  var CLIFF = 3;            // rise taken from a pixel to an inside neighbour
+
+  // Ink lines and relief: both need the change of the smooth count from each
+  // pixel to its neighbours.
   function renderLines(p, rowStart, rowEnd) {
     var k = pointContext(p);
     var w = p.width, h = p.height;
     var out = new Uint32Array(w * (rowEnd - rowStart));
     var low = p.low || 0, high = p.high || p.maxIter;
     var lut = palette(p.colours, p.maxIter, true);
+    var rootLut = k.roots ? rootTable(p.colours) : null;
     var toFine = (FINE - 1) / Math.log(high - low + 1);
     var paper = p.colours.stops[0], ink = p.colours.stops[p.colours.stops.length - 1], inside = lut[FINE];
+    var insides = k.wp ? periodTable(inside) : null;
     var logD = k.logD > 0 ? k.logD : Math.LN2;
     var scale = p.lineScale || 1;   // canvas pixels per CSS pixel
+    var relief = !!p.relief;
     var xr = (p.x1 - p.x0) / p.width;
     var yr = (p.y1 - p.y0) / p.height;
 
@@ -237,6 +333,12 @@ function fractalKernel(scope) {
       var y = -((first + r) * yr + p.y0);
       for (var i = 0; i < w; i++) { v[r * w + i] = pointValue(k, i * xr + p.x0, y); }
     }
+    // The smooth count alone (without the root of Newton's method).
+    var plainValue = function (val) { return k.roots ? val - Math.floor(val / ROOT_SPACING) * ROOT_SPACING : val; };
+    var fineIndex = function (nu) {
+      var f = Math.log((nu > low ? nu - low : 0) + 1) * toFine;
+      return f >= FINE - 1 ? FINE - 1 : (f + 0.5) | 0;
+    };
 
     var idx = 0;
     for (var j = rowStart; j < rowEnd; j++) {
@@ -244,27 +346,47 @@ function fractalKernel(scope) {
       var up = j > first ? r0 - 1 : r0, down = j < last ? r0 + 1 : r0;
       for (var i2 = 0; i2 < w; i2++) {
         var c = v[r0 * w + i2];
-        if (c < 0) { out[idx++] = inside; continue; }
+        if (c < 0) { out[idx++] = insides ? insides[-c - 1] : inside; continue; }
         var left = i2 > 0 ? v[r0 * w + i2 - 1] : c, right = i2 < w - 1 ? v[r0 * w + i2 + 1] : c;
         var above = v[up * w + i2], below = v[down * w + i2];
+        var dx = i2 > 0 && i2 < w - 1 ? 2 : 1, dy = down - up || 1;
+        var nu = plainValue(c);
+        // The colour under the ink or the light.
+        var shade = k.roots ? rootLut[Math.floor(c / ROOT_SPACING) * FINE + fineIndex(nu)] : lut[fineIndex(nu)];
+        var rgb = [shade & 255, (shade >>> 8) & 255, (shade >>> 16) & 255];
+        var col = 0, q, val;
+
+        if (relief) {
+          var hgt = function (n) { return n < 0 ? nu + CLIFF : plainValue(n); };
+          var gx = (hgt(right) - hgt(left)) / dx, gy = (hgt(below) - hgt(above)) / dy;
+          var g = Math.sqrt(gx * gx + gy * gy);
+          var light = 0;
+          if (g > 0) {
+            var steep = g * scale * STEEPNESS;
+            light = RELIEF * (gx + gy) / (g * Math.SQRT2) * steep / (1 + steep);
+          }
+          for (q = 0; q < 3; q++) {
+            val = light > 0 ? rgb[q] + (255 - rgb[q]) * light : rgb[q] * (1 + light);
+            val = Math.round(val);
+            col |= (val < 0 ? 0 : val > 255 ? 255 : val) << (8 * q);
+          }
+          out[idx++] = (col | 0xff000000) >>> 0;
+          continue;
+        }
+
         var d;   // distance to the set, in CSS pixels
         if (left < 0 || right < 0 || above < 0 || below < 0) {
           d = BOUNDARY;   // the boundary passes through this pixel
         } else {
-          var gx = (right - left) / (i2 > 0 && i2 < w - 1 ? 2 : 1);
-          var gy = (below - above) / (down - up || 1);
-          var g = Math.sqrt(gx * gx + gy * gy);
-          d = g > 0 ? 1 / (logD * g) / scale : Infinity;
+          var lx = (right - left) / dx, ly = (below - above) / dy;
+          var lg = Math.sqrt(lx * lx + ly * ly);
+          d = lg > 0 ? 1 / (logD * lg) / scale : Infinity;
         }
         var t = d / LINE_WIDTH, s = t >= 1 ? 0 : (1 - t) * (1 - t);   // ink strength
-        // Under the ink, a light version of the smooth shading.
-        var f = Math.log((c > low ? c - low : 0) + 1) * toFine;
-        var shade = lut[f >= FINE - 1 ? FINE - 1 : (f + 0.5) | 0];
-        var rgb = [shade & 255, (shade >>> 8) & 255, (shade >>> 16) & 255];
-        var col = 0;
-        for (var q = 0; q < 3; q++) {
+        // Under the ink, a light version of the shading.
+        for (q = 0; q < 3; q++) {
           var base = paper[q] + (rgb[q] - paper[q]) * UNDERTONE;
-          var val = Math.round(base + (ink[q] - base) * s);
+          val = Math.round(base + (ink[q] - base) * s);
           col |= (val < 0 ? 0 : val > 255 ? 255 : val) << (8 * q);
         }
         out[idx++] = (col | 0xff000000) >>> 0;
@@ -277,7 +399,8 @@ function fractalKernel(scope) {
   // p = { type, width, height, x0, x1, y0, y1, power, maxIter, cr, ci, colours,
   //       smooth, lines, lineScale, formula }
   function renderRows(p, rowStart, rowEnd) {
-    if (p.lines) { return renderLines(p, rowStart, rowEnd); }
+    wantPeriod = !!p.periods;
+    if (p.lines || p.relief) { return renderLines(p, rowStart, rowEnd); }
     if (p.formula && p.formula.id !== "classic") { return renderFormula(p, rowStart, rowEnd); }
     var w = p.width;
     var out = new Uint32Array(w * (rowEnd - rowStart));
@@ -298,6 +421,7 @@ function fractalKernel(scope) {
     var yr = (p.y1 - p.y0) / p.height;
     var isM = p.type === "mandelbrot";
     var bulbCheck = isM && n === 2;
+    var insides = p.periods ? periodTable(inside) : null;   // Inside: By cycle
     var idx = 0;
     for (var j = rowStart; j < rowEnd; j++) {
       var y = -(j * yr + p.y0);
@@ -309,7 +433,8 @@ function fractalKernel(scope) {
           if (bulbCheck && x * x + y2 < 4) {
             var xq = x - 0.25, q = xq * xq + y2;
             if (q * (q + xq) <= 0.25 * y2 || (x + 1) * (x + 1) + y2 <= 0.0625) {
-              out[idx++] = inside;
+              // Main body (cycle of 1) or the disc on its left (cycle of 2).
+              out[idx++] = insides ? insides[q * (q + xq) <= 0.25 * y2 ? 1 : 2] : inside;
               continue;
             }
           }
@@ -319,7 +444,7 @@ function fractalKernel(scope) {
         } else {
           it = escape(x, y, p.cr, p.ci, n, maxIter, bail);
         }
-        if (it === 0) { out[idx++] = inside; continue; }
+        if (it === 0) { out[idx++] = insides ? insides[lastPeriod] : inside; continue; }
         if (!smooth) { out[idx++] = lut[it]; continue; }
         var nu = it + 1 - Math.log(0.5 * Math.log(lastMod2) * invLog2) * invLogN;
         if (nu < 0) { nu = 0; }
@@ -336,7 +461,9 @@ function fractalKernel(scope) {
   // over this range, so every view uses the whole range of colours; the
   // slowest few points, along the set, take the last colour.
   function valueRange(p, n) {
+    wantPeriod = false;
     var k = pointContext(p), values = [];
+    k.wp = false;
     for (var j = 0; j < n; j++) {
       var y = -(p.y0 + (p.y1 - p.y0) * j / (n - 1));
       for (var i = 0; i < n; i++) {

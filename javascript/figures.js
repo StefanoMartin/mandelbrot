@@ -10,6 +10,8 @@ var settings = {
   palette: 0,     // index into PALETTES (kernel.js)
   smooth: true,   // smooth shading instead of bands
   lines: false,   // ink lines along the set (with smooth shading under them)
+  relief: false,  // smooth shading lit from the upper left, as if embossed
+  inside: "plain", // the inside of the set: "plain" (one colour) or "period" (by cycle)
   show: "both"    // the figures shown: "both", "mandelbrot" or "julia"
 };
 

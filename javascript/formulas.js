@@ -21,6 +21,42 @@ var powN = function(xr, xi){
 
 var Z = "<i>z</i>", C = "<i>c</i>";
 
+// ---- Newton's method ----
+//
+// For p(z) = z^3 + (c - 1) z - c, Newton's method is z -> z - p(z) / p'(z).
+// The roots of p are 1 and the two roots of z^2 + z + c. Fig. 2 colours each
+// z by the root it reaches; Fig. 1 colours each c by the root reached from
+// z = 0, the one critical point of the method that is not a root (p'' = 6z).
+// Where that point reaches no root, the method settles into a cycle instead:
+// small copies of the Mandelbrot set appear there.
+var NEWTON_STEP = [
+  "var z2r = zr * zr - zi * zi, z2i = 2 * zr * zi;",
+  "var z3r = z2r * zr - z2i * zi, z3i = z2r * zi + z2i * zr;",
+  "var vr = z3r + (cr - 1) * zr - ci * zi - cr, vi = z3i + (cr - 1) * zi + ci * zr - ci;",
+  "var er = 3 * z2r + cr - 1, ei = 3 * z2i + ci, ee = er * er + ei * ei;",
+  "nr = zr - (vr * er + vi * ei) / ee; ni = zi - (vi * er - vr * ei) / ee;"
+].join("\n");
+
+var NEWTON_ROOTS = {
+  // 1, and (-1 +- sqrt(1 - 4c)) / 2.
+  setup: [
+    "var s1 = 1 - 4 * cr, s2 = -4 * ci, sm = Math.sqrt(s1 * s1 + s2 * s2);",
+    "var sqr = Math.sqrt(Math.max(0, (sm + s1) / 2)), sqi = (s2 < 0 ? -1 : 1) * Math.sqrt(Math.max(0, (sm - s1) / 2));",
+    "var r2r = (-1 + sqr) / 2, r2i = sqi / 2, r3r = (-1 - sqr) / 2, r3i = -sqi / 2;"
+  ].join("\n"),
+  test: [
+    "hit = -1;",
+    "dr = zr - 1; di = zi; hd = dr * dr + di * di;",
+    "if (hd < 1e-12) { hit = 0; } else {",
+    "  dr = zr - r2r; di = zi - r2i; hd = dr * dr + di * di;",
+    "  if (hd < 1e-12) { hit = 1; } else {",
+    "    dr = zr - r3r; di = zi - r3i; hd = dr * dr + di * di;",
+    "    if (hd < 1e-12) { hit = 2; }",
+    "  }",
+    "}"
+  ].join("\n")
+};
+
 // id: name in links; name: in the list; short: in the legend of Fig. 1;
 // title: caption of Fig. 1; html(n): the formula, as shown in the panel;
 // step: the code; escape: when z has escaped (default |z|^2 >= bail);
@@ -73,6 +109,11 @@ var FORMULAS = [
           "nr = cr * sr - ci * si; ni = cr * si + ci * sr;",
     escape: "zi > 50 || zi < -50", start: [Math.PI / 2, 0], start_html: "π/2",
     degree: null, home: [0, 0, 8], julia_c: [1, 0.3] },
+  { id: "newton", name: "Newton: z\u00b3 + (c \u2212 1) z \u2212 c", short: "Newton set",
+    title: "Newton\u2019s method for z\u00b3 + (c \u2212 1) z \u2212 c",
+    html: function(){ return Z + " \u2212 <i>p</i>(" + Z + ") / <i>p</i>\u2032(" + Z + "), <i>p</i> = " + Z + "<sup>3</sup> + (" + C + " \u2212 1) " + Z + " \u2212 " + C; },
+    step: NEWTON_STEP, roots: NEWTON_ROOTS, mode: "roots",
+    degree: 2, home: [0, 0, 3.2], julia_c: [0.29, 0.43] },
   { id: "custom", name: "Your own formula…", short: "Your set", title: "The set of your formula",
     html: null, step: null, degree: 0 }
 ];
@@ -91,23 +132,43 @@ var phoenixStep = function(p){
 // The complete loop: returns 0 if z never escapes within maxIter steps,
 // otherwise the step at which it did, with |z|^2 then and one step before in
 // m[0] and m[1]. An orbit that comes back to within 1e-12 of an earlier state
-// (z and the previous z) has settled into a cycle and is stopped early.
-var loopSource = function(step, escape){
+// (z and the previous z) has settled into a cycle and is stopped early; the
+// length of the cycle goes in m[2] (0: not known). With wp (Inside: By cycle),
+// an orbit still going after maxIter steps is followed further to find it.
+// roots: for formulas that look for roots (Newton), code that works out the
+// roots for c (setup) and tells whether z has reached one (test: hit = its
+// number, hd = |z - root|^2); "escaping" is then reaching a root, which goes
+// in m[3].
+var loopSource = function(step, escape, roots){
   var esc = escape || "mod >= bail";
+  var test = roots
+    ? roots.test + "\nif (hit >= 0) { m[0] = hd; m[1] = 0; m[3] = hit; return it + 1; }" +
+      "\nif (mod !== mod || mod === Infinity) { return 0; }"
+    : "if (mod !== mod || mod === Infinity || " + esc + ") { m[0] = mod; m[1] = prev; return it + 1; }";
   return [
-    "var yr = 0, yi = 0, nr = 0, ni = 0, mod = zr * zr + zi * zi, prev = 0;",
+    "var yr = 0, yi = 0, nr = 0, ni = 0, mod = zr * zr + zi * zi, prev = 0, hit = -1, hd = 0;",
     "var qr = zr, qi = zi, qyr = 0, qyi = 0, check = 8, since = 0, dr, di, dyr, dyi;",
-    "if (" + esc + ") { m[0] = mod; m[1] = 0; return 1; }",
+    "m[2] = 0; m[3] = 0;",
+    roots ? roots.setup : "if (" + esc + ") { m[0] = mod; m[1] = 0; return 1; }",
     "for (var it = 0; it < maxIter; it++) {",
     step,
     "yr = zr; yi = zi; zr = nr; zi = ni;",
     "prev = mod; mod = zr * zr + zi * zi;",
-    "if (mod !== mod || mod === Infinity || " + esc + ") { m[0] = mod; m[1] = prev; return it + 1; }",
+    test,
     "dr = zr - yr; di = zi - yi;",
-    "if (dr * dr + di * di < 1e-24) { return 0; }",   // a fixed point: z has stopped moving
+    "if (dr * dr + di * di < 1e-24) { m[2] = 1; return 0; }",   // a fixed point: z has stopped moving
     "dr = zr - qr; di = zi - qi; dyr = yr - qyr; dyi = yi - qyi;",
-    "if (dr * dr + di * di + dyr * dyr + dyi * dyi < 1e-24) { return 0; }",
+    "if (dr * dr + di * di + dyr * dyr + dyi * dyi < 1e-24) { m[2] = since + 1; return 0; }",
     "if (++since === check) { since = 0; check *= 2; qr = zr; qi = zi; qyr = yr; qyi = yi; }",
+    "}",
+    "if (wp) {",
+    "  var sr0 = zr, si0 = zi, tol0 = 1e-20 * (1 + zr * zr + zi * zi);",
+    "  for (var pp = 1; pp <= 64; pp++) {",
+    step,
+    "    yr = zr; yi = zi; zr = nr; zi = ni;",
+    "    dr = zr - sr0; di = zi - si0;",
+    "    if (dr * dr + di * di < tol0) { m[2] = pp; return 0; }",
+    "  }",
     "}",
     "return 0;"
   ].join("\n");
@@ -548,15 +609,20 @@ var currentFormula = function(){
     start_note: startNote,
     spec: {
       id: def.id,
-      loop: loopSource(step, escape),
-      key: def.id + ":" + step + ":" + escape,
+      loop: loopSource(step, escape, def.roots),
+      key: def.id + ":" + step + ":" + escape + (def.roots ? ":roots" : ""),
+      mode: def.mode || "escape",
       start: start,
       smooth: degree !== null,
       degree: degree,   // 0: the power n (or, for a typed formula, estimated)
       bail: bail
     },
     step: new Function("zr", "zi", "yr", "yi", "cr", "ci", "n", "var nr = 0, ni = 0;\n" + step + "\nreturn [nr, ni];"),
-    escapes: new Function("zr", "zi", "mod", "bail", "return " + escape + ";")
+    // Has z escaped (or, for Newton, reached a root)? For the orbit.
+    escapes: def.roots
+      ? new Function("zr", "zi", "mod", "bail", "cr", "ci",
+          "var hit = -1, hd = 0, dr, di;\n" + def.roots.setup + "\n" + def.roots.test + "\nreturn hit >= 0;")
+      : new Function("zr", "zi", "mod", "bail", "cr", "ci", "return " + escape + ";")
   };
   // Starting at a pole (0 for z^-2 + c, say) makes every point escape at once.
   var first = value.step(start[0], start[1], 0, 0, 0.123, 0.0456, settings.power);

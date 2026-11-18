@@ -52,7 +52,8 @@ page.FORMULAS.forEach(function (def) {
     page.settings.custom = { expr: "c*sin(z)", start: "auto" };
     var formula = page.currentFormula();
     ["mandelbrot", "julia"].forEach(function (type) {
-      [{ smooth: false }, { smooth: true }, { smooth: true, lines: true, lineScale: 1 }].forEach(function (shading) {
+      [{ smooth: false }, { smooth: true }, { smooth: true, lines: true, lineScale: 1 },
+       { smooth: true, relief: true, lineScale: 1 }, { smooth: true, periods: true }, { smooth: false, periods: true, relief: true, lineScale: 1 }].forEach(function (shading) {
         var p = params({ type: type, x0: -2, x1: 2, y0: -2, y1: 2, power: 2, maxIter: 60, cr: -0.4, ci: 0.6 }, shading);
         p.formula = formula.spec;
         p.colours = page.paletteFor(0, type);
@@ -66,4 +67,59 @@ page.FORMULAS.forEach(function (def) {
     });
     page.settings.formula = "classic";
   });
+});
+
+// The colour of the one point x + iy, drawn as a 1 x 1 picture.
+var pixel = function (type, x, y, extra, c) {
+  var p = params({ type: type, x0: x, x1: x, y0: -y, y1: -y, power: 2, maxIter: 400,
+                   cr: c ? c[0] : 0, ci: c ? c[1] : 0 }, extra);
+  p.width = p.height = 1;
+  var out = new Uint8Array(K.renderRows(p, 0, 1).buffer);
+  return [out[0], out[1], out[2]].join(",");
+};
+
+h.group("Kernel: Inside by cycle");
+[["the built-in z^2 + c", null], ["z^2 + c typed", { expr: "z^2 + c", start: "0" }]].forEach(function (t) {
+  test(t[0] + ": the cardioid, the period-2 bulb and the rabbit's bulb differ", function () {
+    var extra = { periods: true };
+    if (t[1]) {
+      page.settings.formula = "custom"; page.settings.custom = t[1];
+      extra.formula = page.currentFormula().spec;
+      page.settings.formula = "classic";
+    }
+    var one = pixel("mandelbrot", -0.1, 0, extra), two = pixel("mandelbrot", -1, 0, extra);
+    var three = pixel("mandelbrot", -0.123, 0.745, extra);
+    var plain = pixel("mandelbrot", -0.1, 0, t[1] ? { formula: extra.formula } : {});
+    assert.notStrictEqual(one, two); assert.notStrictEqual(two, three); assert.notStrictEqual(one, three);
+    assert.notStrictEqual(two, plain);
+    // the same cycle gives the same colour
+    assert.strictEqual(pixel("mandelbrot", -1.1, 0.05, extra), two);
+  });
+});
+test("the outside is not changed by it", function () {
+  assert.strictEqual(pixel("mandelbrot", 0.5, 0.5, { periods: true }), pixel("mandelbrot", 0.5, 0.5, {}));
+});
+
+h.group("Kernel: Newton's method");
+test("for c = 0 (roots 1, 0, -1) points go to the nearest root, each with its colour", function () {
+  page.settings.formula = "newton";
+  var extra = { formula: page.currentFormula().spec };
+  page.settings.formula = "classic";
+  var a = pixel("julia", 2, 0, extra), b = pixel("julia", 0.1, 0.05, extra), c = pixel("julia", -2, 0.1, extra);
+  assert.notStrictEqual(a, b); assert.notStrictEqual(b, c); assert.notStrictEqual(a, c);
+  // the same root, a little lighter or darker for the steps it took
+  var near = function (u, v) { u = u.split(",").map(Number); v = v.split(",").map(Number);
+    return Math.abs(u[0] - v[0]) + Math.abs(u[1] - v[1]) + Math.abs(u[2] - v[2]) < 40; };
+  assert.ok(near(pixel("julia", 3, -0.2, extra), a));
+  assert.ok(!near(a, b) && !near(b, c) && !near(a, c));
+});
+test("the orbit names the root it reaches", function () {
+  var all = h.load(h.ALL);
+  all.settings.formula = "newton";
+  var r = all.followOrbit([2, 0], [0, 0], 2, 200);
+  assert.ok(r.escaped > 0);
+  assert.ok(/root 1\b/.test(all.orbitVerdict(r, 100, [0, 0])), all.orbitVerdict(r, 100, [0, 0]));
+  r = all.followOrbit([-2, 0], [0, 0], 2, 200);
+  assert.ok(/root \u2212?-?1/.test(all.orbitVerdict(r, 100, [0, 0])) || /root -1/.test(all.orbitVerdict(r, 100, [0, 0])),
+            all.orbitVerdict(r, 100, [0, 0]));
 });

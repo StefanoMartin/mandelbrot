@@ -17,7 +17,7 @@ var state = function (page) {
     formula: page.settings.formula, custom: page.settings.formula === "custom" ? page.settings.custom : null,
     p: page.settings.formula === "phoenix" ? page.settings.p : null,
     power: page.settings.power, palette: page.settings.palette, smooth: page.settings.smooth,
-    lines: page.settings.lines, show: page.settings.show,
+    lines: page.settings.lines, relief: page.settings.relief, inside: page.settings.inside, show: page.settings.show,
     m: [page.mandelbrot.cx, page.mandelbrot.cy, page.mandelbrot.span].map(round),
     j: [page.julia.cx, page.julia.cy, page.julia.span].map(round),
     c: page.julia.c.map(round)
@@ -30,6 +30,8 @@ h.group("Links: what the address says comes back");
   { name: "a deep zoom", set: function (p) { p.mandelbrot.cx = -0.743643887037; p.mandelbrot.cy = 0.131825904205; p.mandelbrot.span = 3e-9; } },
   { name: "Burning Ship, power 3, Night, ink lines, Fig. 1 only", set: function (p) {
       p.settings.formula = "ship"; p.settings.power = 3; p.settings.palette = 3; p.setShading("lines"); p.settings.show = "mandelbrot"; } },
+  { name: "Newton, relief, inside by cycle", set: function (p) {
+      p.settings.formula = "newton"; p.setShading("relief"); p.settings.inside = "period"; } },
   { name: "Phoenix with its p", set: function (p) { p.settings.formula = "phoenix"; p.settings.p = [-0.4, 0.15]; } },
   { name: "a typed formula with + / ^ and spaces", set: function (p) {
       p.settings.formula = "custom"; p.settings.custom = { expr: "c * exp(z) + z^2/3", start: "pi/2" }; } },

@@ -39,7 +39,7 @@ var followOrbit = function(z0, c, n, steps){
     var mod = zr * zr + zi * zi;
     if (!(mod < Infinity)) { return { points: points, escaped: k }; }   // too far to draw
     points.push([zr, zi]);
-    if (formula.escapes(zr, zi, mod, bail)) { return { points: points, escaped: k }; }
+    if (formula.escapes(zr, zi, mod, bail, c[0], c[1])) { return { points: points, escaped: k, z: [zr, zi] }; }
   }
   return { points: points, escaped: 0 };
 };
@@ -56,8 +56,9 @@ var orbitPeriod = function(points){
 };
 
 // What happens to the orbit, in words (HTML).
-var orbitVerdict = function(result, limit){
+var orbitVerdict = function(result, limit, c){
   var e = result.escaped;
+  if (currentFormula().spec.mode === "roots") { return rootVerdict(result, limit, c); }
   if (e && e <= limit){
     return "escapes at step " + e + ": outside the set.";
   }
@@ -69,6 +70,25 @@ var orbitVerdict = function(result, limit){
   if (p === 1) { return "settles on a fixed point: inside the set."; }
   if (p > 1) { return "settles into a cycle of " + p + " points: inside the set."; }
   return "stays bounded for " + ORBIT_FOLLOWED.toLocaleString("en-US") + " steps: inside the set, or very near it.";
+};
+
+// For Newton's method: which root of z^3 + (c - 1) z - c the orbit reaches.
+var rootVerdict = function(result, limit, c){
+  var e = result.escaped;
+  if (e){
+    var z = result.z, d1 = Math.hypot(z[0] - 1, z[1]);
+    var s = Math.sqrt(Math.hypot(1 - 4 * c[0], -4 * c[1]));
+    var a = Math.atan2(-4 * c[1], 1 - 4 * c[0]) / 2;
+    var r2 = [(-1 + s * Math.cos(a)) / 2, s * Math.sin(a) / 2], r3 = [(-1 - s * Math.cos(a)) / 2, -s * Math.sin(a) / 2];
+    var d2 = Math.hypot(z[0] - r2[0], z[1] - r2[1]), d3 = Math.hypot(z[0] - r3[0], z[1] - r3[1]);
+    var name = d1 <= d2 && d1 <= d3 ? "the root 1"
+      : (d2 <= d3 ? "the root " + formatComplex(r2) + ""
+                  : "the root " + formatComplex(r3) + "");
+    return "reaches " + name + " at step " + e + (e > limit ? ", after the " + limit + " iterations of the figure" : "") + ".";
+  }
+  var p = orbitPeriod(result.points);
+  if (p > 1) { return "reaches no root: it settles into a cycle of " + p + " points (a small Mandelbrot set)."; }
+  return "reaches no root in " + ORBIT_FOLLOWED.toLocaleString("en-US") + " steps.";
 };
 
 // The overlay canvas of a figure, where its orbit is drawn.
@@ -102,7 +122,7 @@ var drawOrbit = function(){
 
   text.innerHTML = (f === mandelbrot ? "From <i>z</i> = " + startHtml() + " with <i>c</i> = " + formatComplex(c)
                                      : "From <i>z</i> = " + formatComplex(z0)) +
-    ", the orbit " + orbitVerdict(result, limit);
+    ", the orbit " + orbitVerdict(result, limit, c);
 
   var canvas = orbitCanvas(f);
   var ctx = canvas.getContext("2d");

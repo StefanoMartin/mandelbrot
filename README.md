@@ -27,9 +27,10 @@ In the panel:
 - **Show**: both figures, or one of them using all the room (also with the
   *Hide* / *Show both* button in the corner of each figure). A hidden figure
   is not drawn at all.
-- **Colours** and **Shading**: six colour schemes, and three ways to shade
+- **Colours** and **Shading**: six colour schemes, and four ways to shade
   the outside of the set: *Smooth*, *Bands* (with *Classic* colours, the
-  original look of the page) and *Ink lines*, which draws the edge of the set
+  original look of the page), *Relief*, which lights the smooth shading from
+  the upper left as if the set were embossed in the paper, and *Ink lines*, which draws the edge of the set
   and its finest filaments as thin lines, like an engraving. Ink lines
   estimate the distance of each pixel to the set from how fast the smooth
   shading changes between neighbouring pixels, so they work for every
@@ -38,6 +39,10 @@ In the panel:
   quick sample of it finds how fast its points escape, and their colours are
   spread over that range, so the gradual change towards the set shows at
   every zoom. *Sepia* and *Classic* keep the first look of the page.
+- **Inside**: *One colour*, or *By cycle*: every point inside the set ends up
+  going round a cycle, and its colour tells how long it is. The main cardioid
+  (a fixed point) keeps the inside colour; the big bulb on its left is the
+  2-cycle, the bulbs on top and below the 3-cycle, and so on.
 - ***c***: type a value, or pick a famous Julia set (Douady's rabbit, the
   Basilica, the Airplane, …). A typed or picked *c* is kept.
 - **Orbit**: shows the path *z* takes, step by step, from the point under the
@@ -72,6 +77,14 @@ derivative is 0).
 | Phoenix | *z*² + *c* + *p* · previous *z* (*p* can be set) | 0 |
 | Exponential | *c* e^*z* | 0 |
 | Sine | *c* sin *z* | π/2 |
+| Newton | *z* − *p*(*z*) / *p*′(*z*), *p* = *z*³ + (*c* − 1) *z* − *c* | 0 |
+
+**Newton** is Newton's method for the roots of *p*: 1 and the two roots of
+*z*² + *z* + *c*. Fig. 2 colours each *z* by the root it reaches (one ink per
+root, lighter the faster it gets there); Fig. 1 colours each *c* by the root
+reached from *z* = 0. Where no root is reached the method is caught in a cycle,
+and small copies of the Mandelbrot set appear. The orbit says which root the
+point reaches, or how long its cycle is.
 
 **Your own formula**: type any formula of *z* and *c*, as on paper: `z^3 + c`,
 `2z`, `c sin(z)`, `exp(z) + c` (names written together, as `csin(z)`, are

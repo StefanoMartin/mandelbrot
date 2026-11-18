@@ -40,6 +40,7 @@ var setupEvents = function(){
 	on("power", "input", change_power);
 	on("palette", "change", change_palette);
 	on("shading", "change", change_smooth);
+	on("inside", "change", change_inside);
 	on("show", "change", function(){ setShow(byId("show").value); });
 	on("m_hide", "click", function(){ toggleFigure(mandelbrot); });
 	on("j_hide", "click", function(){ toggleFigure(julia); });

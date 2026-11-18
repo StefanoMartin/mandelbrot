@@ -139,14 +139,21 @@ var change_palette = function(){
 	build();
 }
 
-// Shading: "smooth", "bands" or "lines".
+// Shading: "smooth", "bands", "lines" or "relief".
 var setShading = function(shading){
 	settings.smooth = shading !== "bands";
 	settings.lines = shading === "lines";
+	settings.relief = shading === "relief";
 }
 
 var shadingName = function(){
-	return settings.lines ? "lines" : (settings.smooth ? "smooth" : "bands");
+	return settings.lines ? "lines" : (settings.relief ? "relief" : (settings.smooth ? "smooth" : "bands"));
+}
+
+// Inside: "plain" or "period" (coloured by the length of the cycle).
+var change_inside = function(){
+	settings.inside = byId("inside").value === "period" ? "period" : "plain";
+	build();
 }
 
 var change_smooth = function(){
@@ -197,6 +204,7 @@ var showSettings = function(){
 	byId("power").classList.remove("invalid");
 	byId("palette").value = String(settings.palette);
 	byId("shading").value = shadingName();
+	byId("inside").value = settings.inside;
 	applyShow();
 	var id = settings.formula;
 	byId("formula").value = id;

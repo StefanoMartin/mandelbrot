@@ -3,7 +3,8 @@
 
 // ---- Links: the address remembers the figures ----
 
-// p = power, k = colours, s = 0 for bands or l for ink lines, v = m or j when
+// p = power, k = colours, s = 0 for bands, l for ink lines or r for relief,
+// i = p when the inside is coloured by cycle, v = m or j when
 // only Fig. 1 or Fig. 2 is shown, m and j = centre and span
 // of each figure, c = the point c; f = formula (when not z^n + c), with
 // fp = its p (Phoenix), fe and fs = a typed formula and its start. Opening a
@@ -21,7 +22,8 @@ var encodeState = function(){
 		                   "&fs=" + encodeURIComponent(settings.custom.start) : "");
 	return "#p=" + settings.power + formula +
 		"&k=" + settings.palette +
-		(settings.lines ? "&s=l" : (settings.smooth ? "" : "&s=0")) +
+		(settings.lines ? "&s=l" : (settings.relief ? "&s=r" : (settings.smooth ? "" : "&s=0"))) +
+		(settings.inside === "period" ? "&i=p" : "") +
 		(settings.show === "both" ? "" : "&v=" + (settings.show === "mandelbrot" ? "m" : "j")) +
 		"&m=" + view(mandelbrot) +
 		"&j=" + view(julia) +
@@ -61,7 +63,9 @@ var applyState = function(hash){
 				                    start: key === "fs" ? v : settings.custom.start };
 			}
 		} else if (key === "s"){
-			setShading(value === "0" ? "bands" : (value === "l" ? "lines" : "smooth")); found = true;
+			setShading(value === "0" ? "bands" : (value === "l" ? "lines" : (value === "r" ? "relief" : "smooth"))); found = true;
+		} else if (key === "i"){
+			settings.inside = value === "p" ? "period" : "plain"; found = true;
 		} else if (key === "m" || key === "j"){
 			v = numbers(value, 3);
 			var f = key === "m" ? mandelbrot : julia;
@@ -78,6 +82,8 @@ var applyState = function(hash){
 	// A link without a formula is about z^n + c, and shows both figures.
 	if (found && !/(^|&)f=/.test(text)) { settings.formula = "classic"; }
 	if (found && !/(^|&)v=/.test(text)) { settings.show = "both"; }
+	if (found && !/(^|&)i=/.test(text)) { settings.inside = "plain"; }
+	if (found && !/(^|&)s=/.test(text)) { setShading("smooth"); }
 	return found;
 }
 
